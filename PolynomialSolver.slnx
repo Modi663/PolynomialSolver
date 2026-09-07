@@ -1,0 +1,14 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Элементы решения/">
+    <File Path=".gitignore" />
+  </Folder>
+  <Project Path="src/PolynomialSolver.App/PolynomialSolver.App.csproj" />
+  <Project Path="src/PolynomialSolver.Core/PolynomialSolver.Core.vcxproj" Id="0363625c-798c-422e-9d18-59e2a24d85e8" />
+  <Project Path="src/PolynomialSolver.UI/PolynomialSolver.UI.vcxproj" />
+  <Project Path="tests/PolynomialSolver.Tests/PolynomialSolver.Tests.vcxproj" Id="305a3097-036f-4a93-8231-8e1e2a8b5a35" />
+</Solution>
