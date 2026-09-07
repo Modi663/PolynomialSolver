@@ -22,14 +22,19 @@
     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <VCProjectVersion>18.0</VCProjectVersion>
-    <EnableManagedPackageReferenceSupport>true</EnableManagedPackageReferenceSupport>
-    <ProjectGuid>{E541CD4A-F861-F0D3-FA30-A4C4EE570EF6}</ProjectGuid>
-    <Keyword>NetCoreCProj</Keyword>
-    <RootNamespace>PolynomialSolverUI</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <TargetFramework>net10.0</TargetFramework>
+	  <VCProjectVersion>18.0</VCProjectVersion>
+	  <EnableManagedPackageReferenceSupport>true</EnableManagedPackageReferenceSupport>
+	  <ProjectGuid>{E541CD4A-F861-F0D3-FA30-A4C4EE570EF6}</ProjectGuid>
+	  <Keyword>NetCoreCProj</Keyword>
+	  <RootNamespace>PolynomialSolverUI</RootNamespace>
+	  <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+	  <TargetFramework>net10.0</TargetFramework>
+
+	  <IsTestProject>false</IsTestProject>
   </PropertyGroup>
+  <ItemGroup>
+	  <ProjectCapability Remove="TestContainer" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
@@ -84,6 +89,7 @@
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies />
@@ -95,6 +101,7 @@
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies />
@@ -106,6 +113,7 @@
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies />
@@ -117,6 +125,7 @@
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalDependencies />
