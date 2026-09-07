@@ -3,17 +3,27 @@
 using namespace System;
 using namespace System::Windows::Forms;
 
-namespace PolynomialSolver
+namespace PolynomialSolver::UI
 {
-    namespace UI
+    public ref class MainForm sealed : public Form
     {
-        public ref class MainForm sealed : public Form
-        {
-        public:
-            MainForm();
+    public:
+        MainForm();
 
-        private:
-            void InitializeComponent();
-        };
-    }
+    private:
+        ComboBox^ degreeSelector_;
+        FlowLayoutPanel^ coefficientsPanel_;
+        array<TextBox^>^ coefficientInputs_;
+
+        Button^ solveButton_;
+        RichTextBox^ resultBox_;
+
+        void InitializeComponent();
+        void UpdateCoefficientInputs();
+
+        void OnDegreeChanged(Object^ sender, EventArgs^ e);
+        void OnSolveClick(Object^ sender, EventArgs^ e);
+
+        bool TryReadCoefficients(array<double>^% coefficients);
+    };
 }
