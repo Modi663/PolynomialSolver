@@ -3,6 +3,7 @@
 #include "Polynomial.h"
 
 #include <complex>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 
@@ -47,5 +48,12 @@ TEST(PolynomialTests, ThrowsForZeroLeadingCoefficient)
 {
     EXPECT_THROW(
         Polynomial({ 0.0, 2.0, 1.0 }),
+        std::invalid_argument);
+}
+
+TEST(PolynomialTests, RejectsNonFiniteCoefficient)
+{
+    EXPECT_THROW(
+        Polynomial({ 1.0, std::numeric_limits<double>::infinity() }),
         std::invalid_argument);
 }

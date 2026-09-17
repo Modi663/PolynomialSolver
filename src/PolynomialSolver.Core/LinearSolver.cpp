@@ -11,7 +11,7 @@ namespace PolynomialSolver::Core
         if (polynomial.degree() != 1)
         {
             throw std::invalid_argument(
-                "LinearSolver requires a polynomial of degree 1.");
+                "Решатель линейных уравнений принимает только полином первой степени.");
         }
 
         const auto& coefficients = polynomial.coefficients();

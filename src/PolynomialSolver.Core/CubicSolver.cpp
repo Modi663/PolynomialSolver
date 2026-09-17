@@ -14,7 +14,7 @@ namespace PolynomialSolver::Core
         if (polynomial.degree() != 3)
         {
             throw std::invalid_argument(
-                "CubicSolver требует полином степени 3.");
+                "Решатель кубических уравнений принимает только полином третьей степени.");
         }
 
         const auto& coefficients = polynomial.coefficients();

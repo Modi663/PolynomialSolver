@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "Polynomial.h"
 
+#include <cmath>
 #include <stdexcept>
 #include <utility>
 
@@ -12,13 +13,22 @@ namespace PolynomialSolver::Core
         if (coefficients_.empty())
         {
             throw std::invalid_argument(
-                "Polynomial must contain at least one coefficient.");
+                "Полином должен содержать хотя бы один коэффициент.");
+        }
+
+        for (const double coefficient : coefficients_)
+        {
+            if (!std::isfinite(coefficient))
+            {
+                throw std::invalid_argument(
+                    "Коэффициенты полинома должны быть конечными числами.");
+            }
         }
 
         if (coefficients_.size() > 1 && coefficients_.front() == 0.0)
         {
             throw std::invalid_argument(
-                "Leading coefficient must not be zero.");
+                "Старший коэффициент не может быть нулём.");
         }
     }
 
