@@ -107,6 +107,7 @@
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CubicSolverTests.cpp" />
     <ClCompile Include="LinearSolverTests.cpp" />
     <ClCompile Include="PolynomialTests.cpp" />
     <ClCompile Include="pch.cpp">
