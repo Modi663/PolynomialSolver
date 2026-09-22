@@ -12,6 +12,7 @@ include(CTest)
 find_package(Qt6 6.11 REQUIRED COMPONENTS Test)
 
 add_subdirectory(src/PolynomialSolver.Core)
+add_subdirectory(src/PolynomialSolver.Application)
 
 if(BUILD_TESTING)
     add_subdirectory(tests/QtTests)
