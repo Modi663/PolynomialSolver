@@ -33,11 +33,38 @@ set_tests_properties(SolvePolynomialUseCaseTests PROPERTIES
 qt_add_executable(PlotDataBuilderTests PlotDataBuilderTests.cpp)
 target_link_libraries(PlotDataBuilderTests
     PRIVATE
-        PolynomialSolver.Plotting
+        PolynomialSolver.UI
         Qt6::Test
 )
 add_test(NAME PlotDataBuilderTests COMMAND PlotDataBuilderTests)
 set_tests_properties(PlotDataBuilderTests PROPERTIES
+    ENVIRONMENT_MODIFICATION
+        "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
+)
+
+qt_add_executable(CoefficientParserTests CoefficientParserTests.cpp)
+target_link_libraries(CoefficientParserTests
+    PRIVATE
+        PolynomialSolver.UI
+        Qt6::Test
+)
+add_test(NAME CoefficientParserTests COMMAND CoefficientParserTests)
+set_tests_properties(CoefficientParserTests PROPERTIES
+    ENVIRONMENT_MODIFICATION
+        "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
+)
+
+qt_add_executable(MainWindowTests MainWindowTests.cpp)
+target_link_libraries(MainWindowTests
+    PRIVATE
+        PolynomialSolver.UI
+        PolynomialSolver.Application
+        Qt6::Test
+        Qt6::Widgets
+)
+add_test(NAME MainWindowTests COMMAND MainWindowTests)
+set_tests_properties(MainWindowTests PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     ENVIRONMENT_MODIFICATION
         "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
 )
