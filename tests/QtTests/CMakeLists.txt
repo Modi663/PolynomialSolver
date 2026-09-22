@@ -29,3 +29,15 @@ set_tests_properties(SolvePolynomialUseCaseTests PROPERTIES
     ENVIRONMENT_MODIFICATION
         "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
 )
+
+qt_add_executable(PlotDataBuilderTests PlotDataBuilderTests.cpp)
+target_link_libraries(PlotDataBuilderTests
+    PRIVATE
+        PolynomialSolver.Plotting
+        Qt6::Test
+)
+add_test(NAME PlotDataBuilderTests COMMAND PlotDataBuilderTests)
+set_tests_properties(PlotDataBuilderTests PROPERTIES
+    ENVIRONMENT_MODIFICATION
+        "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
+)
