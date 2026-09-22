@@ -68,3 +68,18 @@ set_tests_properties(MainWindowTests PROPERTIES
     ENVIRONMENT_MODIFICATION
         "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
 )
+
+qt_add_executable(PolynomialChartViewTests PolynomialChartViewTests.cpp)
+target_link_libraries(PolynomialChartViewTests
+    PRIVATE
+        PolynomialSolver.UI
+        Qt6::Charts
+        Qt6::Test
+        Qt6::Widgets
+)
+add_test(NAME PolynomialChartViewTests COMMAND PolynomialChartViewTests)
+set_tests_properties(PolynomialChartViewTests PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    ENVIRONMENT_MODIFICATION
+        "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
+)

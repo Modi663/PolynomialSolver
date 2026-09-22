@@ -13,6 +13,7 @@ target_include_directories(PolynomialSolver.UI
 target_link_libraries(PolynomialSolver.UI
     PUBLIC
         PolynomialSolver.Application
+        Qt6::Charts
         Qt6::Core
         Qt6::Widgets
 )
