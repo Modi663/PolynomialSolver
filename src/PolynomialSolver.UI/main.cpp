@@ -1,6 +1,4 @@
 #include "MainWindow.h"
-#include "SolvePolynomialUseCase.h"
-
 #include <QApplication>
 #include <QIcon>
 
@@ -11,8 +9,7 @@ int main(int argc, char* argv[])
     QApplication::setApplicationDisplayName(QStringLiteral("Полиномы"));
     QApplication::setWindowIcon(QIcon(QStringLiteral(":/assets/app.ico")));
 
-    const PolynomialSolver::Application::SolvePolynomialUseCase solveUseCase;
-    PolynomialSolver::UI::MainWindow window(solveUseCase);
+    PolynomialSolver::UI::MainWindow window;
     window.show();
 
     return application.exec();

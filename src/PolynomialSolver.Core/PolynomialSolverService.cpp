@@ -1,4 +1,4 @@
-#include "SolvePolynomialUseCase.h"
+#include "PolynomialSolverService.h"
 
 #include "CubicSolver.h"
 #include "LinearSolver.h"
@@ -10,9 +10,9 @@
 #include <stdexcept>
 #include <utility>
 
-namespace PolynomialSolver::Application
+namespace PolynomialSolver::Core
 {
-    SolvedPolynomial SolvePolynomialUseCase::execute(
+    SolvedPolynomial PolynomialSolverService::solve(
         std::vector<double> coefficients) const
     {
         if (coefficients.size() < 2 || coefficients.size() > 4)
@@ -21,24 +21,24 @@ namespace PolynomialSolver::Application
                 "Количество коэффициентов должно быть от 2 до 4.");
         }
 
-        const Core::Polynomial polynomial(coefficients);
-
-        Core::SolveResult result;
+        const Polynomial polynomial(coefficients);
+        SolveResult result;
 
         switch (polynomial.degree())
         {
         case 1:
-            result = Core::LinearSolver::solve(polynomial);
+            result = LinearSolver::solve(polynomial);
             break;
         case 2:
-            result = Core::QuadraticSolver::solve(polynomial);
+            result = QuadraticSolver::solve(polynomial);
             break;
         case 3:
-            result = Core::CubicSolver::solve(polynomial);
+            result = CubicSolver::solve(polynomial);
             break;
         default:
             throw std::logic_error("Polynomial degree is not implemented.");
         }
+
         std::vector<double> residuals;
         residuals.reserve(result.roots.size());
 
@@ -51,7 +51,7 @@ namespace PolynomialSolver::Application
                     "для устойчивого вычисления корней.");
             }
 
-            residuals.push_back(Core::RootVerifier::residual(polynomial, root));
+            residuals.push_back(RootVerifier::residual(polynomial, root));
         }
 
         return {

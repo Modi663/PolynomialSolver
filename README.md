@@ -78,7 +78,7 @@ Release-сборка и создание автономной папки:
 
 ## Архитектура
 
-Зависимости направлены от интерфейса к сценарию приложения и далее к математическому ядру. `Core` и `Application` не используют Qt.
+Проект разделён на два модуля: интерфейс зависит от математического ядра, а `Core` не использует Qt. Оркестрация выбора решателя и расчёта невязок находится в `PolynomialSolverService`, поэтому математические правила не попадают в обработчики окна.
 
 ```mermaid
 classDiagram
@@ -103,8 +103,8 @@ classDiagram
         +gridStep(range, pixels) double
     }
 
-    class SolvePolynomialUseCase {
-        +execute(coefficients) SolvedPolynomial
+    class PolynomialSolverService {
+        +solve(coefficients) SolvedPolynomial
     }
 
     class SolvedPolynomial {
@@ -119,15 +119,15 @@ classDiagram
     class CubicSolver
     class RootVerifier
 
-    MainWindow --> SolvePolynomialUseCase
+    MainWindow --> PolynomialSolverService
     MainWindow *-- PolynomialChartView
     PolynomialChartView --> PlotDataBuilder
-    SolvePolynomialUseCase --> SolvedPolynomial
-    SolvePolynomialUseCase --> Polynomial
-    SolvePolynomialUseCase --> LinearSolver
-    SolvePolynomialUseCase --> QuadraticSolver
-    SolvePolynomialUseCase --> CubicSolver
-    SolvePolynomialUseCase --> RootVerifier
+    PolynomialSolverService --> SolvedPolynomial
+    PolynomialSolverService --> Polynomial
+    PolynomialSolverService --> LinearSolver
+    PolynomialSolverService --> QuadraticSolver
+    PolynomialSolverService --> CubicSolver
+    PolynomialSolverService --> RootVerifier
 ```
 
 Последовательность решения и обработки ошибок:
@@ -136,8 +136,7 @@ classDiagram
 sequenceDiagram
     actor User as Пользователь
     participant UI as MainWindow
-    participant App as SolvePolynomialUseCase
-    participant Core as Core solver
+    participant Core as PolynomialSolverService
     participant Chart as PolynomialChartView
 
     User->>UI: Решить / Enter
@@ -145,16 +144,14 @@ sequenceDiagram
     alt Ошибка ввода
         UI-->>User: Подсветить первое поле и показать текст ошибки
     else Ввод корректен
-        UI->>App: execute(coefficients)
-        App->>Core: Создать Polynomial и выбрать решатель
+        UI->>Core: solve(coefficients)
+        Core->>Core: Создать Polynomial и выбрать решатель
         alt Исключение или нечисловой корень
-            Core-->>App: exception
-            App-->>UI: exception
+            Core-->>UI: exception
             UI-->>User: Критическое сообщение
         else Решение найдено
-            Core-->>App: SolveResult
-            App->>Core: Вычислить невязки
-            App-->>UI: SolvedPolynomial
+            Core->>Core: Вычислить невязки
+            Core-->>UI: SolvedPolynomial
             UI->>Chart: setPolynomial(coefficients, roots)
             UI-->>User: Показать корни и заблокировать форму
         end

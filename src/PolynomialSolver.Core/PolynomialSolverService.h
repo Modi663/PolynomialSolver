@@ -4,19 +4,19 @@
 
 #include <vector>
 
-namespace PolynomialSolver::Application
+namespace PolynomialSolver::Core
 {
     struct SolvedPolynomial
     {
         std::vector<double> coefficients;
-        Core::SolveResult result;
+        SolveResult result;
         std::vector<double> residuals;
     };
 
-    class SolvePolynomialUseCase
+    class PolynomialSolverService
     {
     public:
-        [[nodiscard]] SolvedPolynomial execute(
+        [[nodiscard]] SolvedPolynomial solve(
             std::vector<double> coefficients) const;
     };
 }

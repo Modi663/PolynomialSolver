@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SolvePolynomialUseCase.h"
+#include "PolynomialSolverService.h"
 
 #include <QMainWindow>
 
@@ -23,9 +23,7 @@ namespace PolynomialSolver::UI
         Q_OBJECT
 
     public:
-        explicit MainWindow(
-            const Application::SolvePolynomialUseCase& solveUseCase,
-            QWidget* parent = nullptr);
+        explicit MainWindow(QWidget* parent = nullptr);
 
     private:
         enum class Mode
@@ -34,7 +32,7 @@ namespace PolynomialSolver::UI
             Solved
         };
 
-        const Application::SolvePolynomialUseCase& solveUseCase_;
+        Core::PolynomialSolverService solver_;
         int selectedDegree_{1};
         std::array<QString, 4> valuesByPower_{};
 

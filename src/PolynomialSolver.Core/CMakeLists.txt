@@ -2,6 +2,7 @@ add_library(PolynomialSolver.Core STATIC
     CubicSolver.cpp
     LinearSolver.cpp
     Polynomial.cpp
+    PolynomialSolverService.cpp
     QuadraticSolver.cpp
     RootVerifier.cpp
 )

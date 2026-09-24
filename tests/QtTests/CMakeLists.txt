@@ -17,18 +17,7 @@ add_core_test(LinearSolverTests LinearSolverTests.cpp)
 add_core_test(QuadraticSolverTests QuadraticSolverTests.cpp)
 add_core_test(CubicSolverTests CubicSolverTests.cpp)
 add_core_test(RootVerifierTests RootVerifierTests.cpp)
-
-qt_add_executable(SolvePolynomialUseCaseTests SolvePolynomialUseCaseTests.cpp)
-target_link_libraries(SolvePolynomialUseCaseTests
-    PRIVATE
-        PolynomialSolver.Application
-        Qt6::Test
-)
-add_test(NAME SolvePolynomialUseCaseTests COMMAND SolvePolynomialUseCaseTests)
-set_tests_properties(SolvePolynomialUseCaseTests PROPERTIES
-    ENVIRONMENT_MODIFICATION
-        "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
-)
+add_core_test(PolynomialSolverServiceTests PolynomialSolverServiceTests.cpp)
 
 qt_add_executable(PlotDataBuilderTests PlotDataBuilderTests.cpp)
 target_link_libraries(PlotDataBuilderTests
@@ -58,7 +47,6 @@ qt_add_executable(MainWindowTests MainWindowTests.cpp)
 target_link_libraries(MainWindowTests
     PRIVATE
         PolynomialSolver.UI
-        PolynomialSolver.Application
         Qt6::Test
         Qt6::Widgets
 )

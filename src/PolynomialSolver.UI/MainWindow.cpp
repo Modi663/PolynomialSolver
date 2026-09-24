@@ -71,11 +71,8 @@ namespace
 
 namespace PolynomialSolver::UI
 {
-    MainWindow::MainWindow(
-        const Application::SolvePolynomialUseCase& solveUseCase,
-        QWidget* parent)
-        : QMainWindow(parent),
-          solveUseCase_(solveUseCase)
+    MainWindow::MainWindow(QWidget* parent)
+        : QMainWindow(parent)
     {
         buildInterface();
         rebuildEquationInputs(false);
@@ -328,8 +325,8 @@ namespace PolynomialSolver::UI
 
         try
         {
-            const Application::SolvedPolynomial solved =
-                solveUseCase_.execute(std::move(coefficients));
+            const Core::SolvedPolynomial solved =
+                solver_.solve(std::move(coefficients));
 
             QStringList lines;
             lines << (solved.result.method == Core::SolutionMethod::Analytical

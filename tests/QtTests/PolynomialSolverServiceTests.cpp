@@ -1,18 +1,18 @@
-#include "SolvePolynomialUseCase.h"
+#include "PolynomialSolverService.h"
 
 #include <QtTest/QTest>
 
-using PolynomialSolver::Application::SolvePolynomialUseCase;
+using PolynomialSolver::Core::PolynomialSolverService;
 using PolynomialSolver::Core::SolutionMethod;
 
-class SolvePolynomialUseCaseTests final : public QObject
+class PolynomialSolverServiceTests final : public QObject
 {
     Q_OBJECT
 
 private slots:
     void solvesLinearPolynomial()
     {
-        const auto solved = SolvePolynomialUseCase{}.execute({2.0, -6.0});
+        const auto solved = PolynomialSolverService{}.solve({2.0, -6.0});
 
         QCOMPARE(solved.coefficients, std::vector<double>({2.0, -6.0}));
         QCOMPARE(solved.result.method, SolutionMethod::Analytical);
@@ -23,7 +23,7 @@ private slots:
 
     void solvesQuadraticPolynomial()
     {
-        const auto solved = SolvePolynomialUseCase{}.execute({1.0, -5.0, 6.0});
+        const auto solved = PolynomialSolverService{}.solve({1.0, -5.0, 6.0});
 
         QCOMPARE(solved.result.roots.size(), std::size_t{2});
         QCOMPARE(solved.residuals.size(), solved.result.roots.size());
@@ -33,7 +33,7 @@ private slots:
 
     void solvesCubicPolynomial()
     {
-        const auto solved = SolvePolynomialUseCase{}.execute(
+        const auto solved = PolynomialSolverService{}.solve(
             {1.0, -6.0, 11.0, -6.0});
 
         QCOMPARE(solved.result.roots.size(), std::size_t{3});
@@ -48,21 +48,21 @@ private slots:
     void rejectsCoefficientCountsOutsideSupportedDegrees()
     {
         QVERIFY_EXCEPTION_THROWN(
-            SolvePolynomialUseCase{}.execute({1.0}),
+            PolynomialSolverService{}.solve({1.0}),
             std::invalid_argument);
         QVERIFY_EXCEPTION_THROWN(
-            SolvePolynomialUseCase{}.execute({1.0, 0.0, 0.0, 0.0, 0.0}),
+            PolynomialSolverService{}.solve({1.0, 0.0, 0.0, 0.0, 0.0}),
             std::invalid_argument);
     }
 
     void rejectsNonFiniteCalculatedRoot()
     {
         QVERIFY_EXCEPTION_THROWN(
-            SolvePolynomialUseCase{}.execute({1e-308, -1e308}),
+            PolynomialSolverService{}.solve({1e-308, -1e308}),
             std::overflow_error);
     }
 };
 
-QTEST_APPLESS_MAIN(SolvePolynomialUseCaseTests)
+QTEST_APPLESS_MAIN(PolynomialSolverServiceTests)
 
-#include "SolvePolynomialUseCaseTests.moc"
+#include "PolynomialSolverServiceTests.moc"

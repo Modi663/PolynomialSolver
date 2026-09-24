@@ -1,5 +1,4 @@
 #include "MainWindow.h"
-#include "SolvePolynomialUseCase.h"
 
 #include <QAbstractButton>
 #include <QApplication>
@@ -12,7 +11,6 @@
 #include <QSplitter>
 #include <QtTest/QTest>
 
-using PolynomialSolver::Application::SolvePolynomialUseCase;
 using PolynomialSolver::UI::MainWindow;
 
 class MainWindowTests final : public QObject
@@ -20,8 +18,6 @@ class MainWindowTests final : public QObject
     Q_OBJECT
 
 private:
-    SolvePolynomialUseCase useCase_;
-
     static QLineEdit* coefficient(MainWindow& window, const int power)
     {
         return window.findChild<QLineEdit*>(
@@ -31,7 +27,7 @@ private:
 private slots:
     void usesNativeEquationFirstLayout()
     {
-        MainWindow window(useCase_);
+        MainWindow window;
         window.show();
         QTest::qWait(10);
 
@@ -63,7 +59,7 @@ private slots:
 
     void keepsFormulaTermsTogetherAtWideWindowSize()
     {
-        MainWindow window(useCase_);
+        MainWindow window;
         window.resize(1100, 720);
         window.show();
         QTest::qWait(10);
@@ -86,7 +82,7 @@ private slots:
 
     void preservesCoefficientValuesBetweenDegrees()
     {
-        MainWindow window(useCase_);
+        MainWindow window;
 
         coefficient(window, 1)->setText(QStringLiteral("7"));
         coefficient(window, 0)->setText(QStringLiteral("-3"));
@@ -103,7 +99,7 @@ private slots:
 
     void highlightsAndFocusesFirstInvalidCoefficient()
     {
-        MainWindow window(useCase_);
+        MainWindow window;
         window.show();
         QTest::qWait(10);
 
@@ -124,7 +120,7 @@ private slots:
 
     void solvesLocksAndClearsTheForm()
     {
-        MainWindow window(useCase_);
+        MainWindow window;
 
         coefficient(window, 1)->setText(QStringLiteral("0,5"));
         coefficient(window, 0)->setText(QStringLiteral("-1"));
@@ -147,7 +143,7 @@ private slots:
 
     void returnKeyStartsSolving()
     {
-        MainWindow window(useCase_);
+        MainWindow window;
         window.show();
         coefficient(window, 1)->setText(QStringLiteral("1"));
         coefficient(window, 0)->setText(QStringLiteral("-4"));
