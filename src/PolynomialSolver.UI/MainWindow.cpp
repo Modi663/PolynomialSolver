@@ -15,6 +15,7 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QSizePolicy>
 #include <QSplitter>
 #include <QStyle>
 #include <QVBoxLayout>
@@ -245,6 +246,7 @@ namespace PolynomialSolver::UI
                 ? QStringLiteral(" = 0")
                 : powerText(power) + QStringLiteral(" + "));
             term->setFont(formulaFont);
+            term->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
             equationLayout_->addWidget(term);
         }
 

@@ -61,6 +61,29 @@ private slots:
         QVERIFY(window.styleSheet().isEmpty());
     }
 
+    void keepsFormulaTermsTogetherAtWideWindowSize()
+    {
+        MainWindow window(useCase_);
+        window.resize(1100, 720);
+        window.show();
+        QTest::qWait(10);
+
+        QLabel* variableTerm = nullptr;
+        for (QLabel* label : window.findChildren<QLabel*>())
+        {
+            if (label->text() == QStringLiteral("x + "))
+            {
+                variableTerm = label;
+                break;
+            }
+        }
+
+        QVERIFY(variableTerm != nullptr);
+        const int excessWidth = variableTerm->width() - variableTerm->sizeHint().width();
+        QVERIFY2(excessWidth <= 16,
+            qPrintable(QStringLiteral("Formula term expands by %1 px").arg(excessWidth)));
+    }
+
     void preservesCoefficientValuesBetweenDegrees()
     {
         MainWindow window(useCase_);
