@@ -41,6 +41,7 @@ namespace PolynomialSolver::UI
         QButtonGroup* degreeGroup_{};
         QHBoxLayout* equationLayout_{};
         std::vector<QLineEdit*> coefficientInputs_;
+        QLabel* inputErrorIcon_{};
         QLabel* inputErrorLabel_{};
         QPushButton* solveButton_{};
         QPushButton* clearButton_{};

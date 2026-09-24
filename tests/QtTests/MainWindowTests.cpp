@@ -2,10 +2,14 @@
 #include "SolvePolynomialUseCase.h"
 
 #include <QAbstractButton>
+#include <QApplication>
+#include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QRadioButton>
+#include <QSplitter>
 #include <QtTest/QTest>
 
 using PolynomialSolver::Application::SolvePolynomialUseCase;
@@ -25,6 +29,38 @@ private:
     }
 
 private slots:
+    void usesNativeEquationFirstLayout()
+    {
+        MainWindow window(useCase_);
+        window.show();
+        QTest::qWait(10);
+
+        const auto* equationGroup =
+            window.findChild<QGroupBox*>(QStringLiteral("equationGroup"));
+        const auto* resultGroup =
+            window.findChild<QGroupBox*>(QStringLiteral("resultGroup"));
+        const auto* graphGroup =
+            window.findChild<QGroupBox*>(QStringLiteral("graphGroup"));
+        const auto* splitter =
+            window.findChild<QSplitter*>(QStringLiteral("contentSplitter"));
+
+        QVERIFY(equationGroup != nullptr);
+        QVERIFY(resultGroup != nullptr);
+        QVERIFY(graphGroup != nullptr);
+        QVERIFY(splitter != nullptr);
+        QCOMPARE(splitter->orientation(), Qt::Horizontal);
+        QCOMPARE(splitter->widget(0), resultGroup);
+        QCOMPARE(splitter->widget(1), graphGroup);
+        QVERIFY(splitter->sizes().at(1) > splitter->sizes().at(0));
+
+        const auto* degreeButton =
+            window.findChild<QRadioButton*>(QStringLiteral("degreeButton1"));
+        QVERIFY(degreeButton != nullptr);
+        QVERIFY(coefficient(window, 1)->font().pointSizeF()
+            > QApplication::font().pointSizeF());
+        QVERIFY(window.styleSheet().isEmpty());
+    }
+
     void preservesCoefficientValuesBetweenDegrees()
     {
         MainWindow window(useCase_);
@@ -52,8 +88,15 @@ private slots:
         window.findChild<QPushButton*>(QStringLiteral("solveButton"))->click();
 
         QVERIFY(!window.findChild<QLabel*>(QStringLiteral("inputErrorLabel"))->text().isEmpty());
+        const auto* errorIcon =
+            window.findChild<QLabel*>(QStringLiteral("inputErrorIcon"));
+        QVERIFY(errorIcon != nullptr);
+        QVERIFY(errorIcon->isVisible());
+        QVERIFY(!errorIcon->pixmap(Qt::ReturnByValue).isNull());
         QCOMPARE(QApplication::focusWidget(), coefficient(window, 1));
         QCOMPARE(coefficient(window, 1)->property("invalid").toBool(), true);
+        QVERIFY(coefficient(window, 1)->palette().color(QPalette::Base)
+            != QApplication::palette().color(QPalette::Base));
     }
 
     void solvesLocksAndClearsTheForm()
