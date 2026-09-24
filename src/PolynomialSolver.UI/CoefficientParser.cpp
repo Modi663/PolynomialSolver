@@ -15,14 +15,21 @@ namespace PolynomialSolver::UI
             return std::nullopt;
         }
 
+        QLocale strictLocale(locale);
+        strictLocale.setNumberOptions(
+            strictLocale.numberOptions() | QLocale::RejectGroupSeparator);
+
         bool parsed = false;
-        double value = locale.toDouble(trimmed, &parsed);
+        double value = strictLocale.toDouble(trimmed, &parsed);
 
         if (!parsed)
         {
             QString normalized = trimmed;
             normalized.replace(',', '.');
-            value = QLocale::c().toDouble(normalized, &parsed);
+
+            QLocale invariant = QLocale::c();
+            invariant.setNumberOptions(QLocale::RejectGroupSeparator);
+            value = invariant.toDouble(normalized, &parsed);
         }
 
         if (!parsed || !std::isfinite(value))

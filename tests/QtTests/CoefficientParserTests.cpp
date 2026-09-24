@@ -24,6 +24,28 @@ private slots:
         QCOMPARE(*point, 1.5);
     }
 
+    void treatsCommaAndPointAsDecimalSeparatorsInsteadOfGrouping()
+    {
+        const auto comma = CoefficientParser::parse(
+            QStringLiteral("1,234"),
+            QLocale(QLocale::English, QLocale::UnitedStates));
+        const auto point = CoefficientParser::parse(
+            QStringLiteral("1.234"),
+            QLocale(QLocale::German, QLocale::Germany));
+
+        QVERIFY(comma.has_value());
+        QVERIFY(point.has_value());
+        QCOMPARE(*comma, 1.234);
+        QCOMPARE(*point, 1.234);
+    }
+
+    void rejectsMixedDecimalAndGroupingSeparators()
+    {
+        QVERIFY(!CoefficientParser::parse(
+            QStringLiteral("1,234.5"),
+            QLocale(QLocale::English, QLocale::UnitedStates)).has_value());
+    }
+
     void trimsWhitespaceAndAcceptsScientificNotation()
     {
         const auto value = CoefficientParser::parse(
