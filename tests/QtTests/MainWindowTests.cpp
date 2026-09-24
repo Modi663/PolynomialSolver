@@ -3,6 +3,7 @@
 #include <QAbstractButton>
 #include <QApplication>
 #include <QGroupBox>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPlainTextEdit>
@@ -31,6 +32,18 @@ private slots:
 
         QVERIFY(window.findChild<QWidget*>(QStringLiteral("centralWidget")) != nullptr);
         QVERIFY(window.findChild<QWidget*>(QStringLiteral("equationInputHost")) != nullptr);
+    }
+
+    void hiddenInputErrorRowDoesNotReserveHeight()
+    {
+        MainWindow window;
+        window.show();
+        QTest::qWait(10);
+
+        const auto* errorLayout =
+            window.findChild<QHBoxLayout*>(QStringLiteral("errorLayout"));
+        QVERIFY(errorLayout != nullptr);
+        QCOMPARE(errorLayout->minimumSize().height(), 0);
     }
 
     void usesNativeEquationFirstLayout()
