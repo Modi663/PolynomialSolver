@@ -14,18 +14,18 @@ PolynomialSolver — нативное Windows x64-приложение для р
 
 Основная конфигурация проекта проверена с:
 
-- `QT_ROOT=C:\Qt\6.11.2\mingw_64`;
-- `MINGW_ROOT=C:\Qt\Tools\mingw1310_64`;
+- Qt из `C:\Qt\6.11.2\mingw_64`;
+- MinGW из `C:\Qt\Tools\mingw1310_64`;
 - CMake из `C:\Qt\Tools\CMake_64`;
 - Ninja из `C:\Qt\Tools\Ninja`.
+
+Эти пути уже записаны в `CMakePresets.json`, поэтому настраивать переменные среды не требуется.
 
 ## Сборка и тестирование
 
 Команды ниже выполняются в PowerShell из корня репозитория:
 
 ```powershell
-$env:QT_ROOT = 'C:\Qt\6.11.2\mingw_64'
-$env:MINGW_ROOT = 'C:\Qt\Tools\mingw1310_64'
 $cmake = 'C:\Qt\Tools\CMake_64\bin\cmake.exe'
 $ctest = 'C:\Qt\Tools\CMake_64\bin\ctest.exe'
 
@@ -50,6 +50,15 @@ Release-сборка и создание автономной папки:
 ```
 
 Папка `dist\PolynomialSolver` содержит Qt DLL, плагины платформы и MinGW runtime. Установленная копия не требует Qt в `PATH`.
+
+## Работа в Qt Creator
+
+1. Откройте корневой `CMakeLists.txt` через «Файл → Открыть файл или проект».
+2. На экране настройки выберите preset `PolynomialSolver: Qt Debug` или `PolynomialSolver: Qt Release`.
+3. Нажмите «Настроить проект». Компилятор MinGW, Qt, CMake, Ninja и GDB берутся из `CMakePresets.json`.
+4. Соберите проект сочетанием Ctrl+B, запустите Ctrl+R или начните отладку клавишей F5.
+
+Если presets были изменены при уже открытом проекте, выберите «Сборка → Перезагрузить CMake Presets». Локальные настройки Qt Creator сохраняются в игнорируемом каталоге `.qtcreator`.
 
 ## Управление
 
