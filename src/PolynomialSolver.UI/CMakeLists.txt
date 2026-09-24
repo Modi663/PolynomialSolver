@@ -1,6 +1,7 @@
 add_library(PolynomialSolver.UI STATIC
     CoefficientParser.cpp
     MainWindow.cpp
+    MainWindow.ui
     PlotDataBuilder.cpp
     PolynomialChartView.cpp
 )

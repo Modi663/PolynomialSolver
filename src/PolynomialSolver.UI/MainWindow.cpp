@@ -2,23 +2,20 @@
 
 #include "CoefficientParser.h"
 #include "PolynomialChartView.h"
+#include "ui_MainWindow.h"
 
 #include <QAbstractButton>
 #include <QApplication>
 #include <QButtonGroup>
 #include <QFont>
-#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
-#include <QPlainTextEdit>
 #include <QPushButton>
-#include <QRadioButton>
 #include <QSizePolicy>
 #include <QSplitter>
 #include <QStyle>
-#include <QVBoxLayout>
 
 #include <cmath>
 #include <utility>
@@ -72,127 +69,45 @@ namespace
 namespace PolynomialSolver::UI
 {
     MainWindow::MainWindow(QWidget* parent)
-        : QMainWindow(parent)
+        : QMainWindow(parent),
+          ui_(std::make_unique<::Ui::MainWindow>())
     {
         buildInterface();
         rebuildEquationInputs(false);
         setMode(Mode::Editing);
     }
 
+    MainWindow::~MainWindow() = default;
+
     void MainWindow::buildInterface()
     {
-        setWindowTitle(QStringLiteral("Полиномы"));
-        resize(1100, 720);
-        setMinimumSize(900, 600);
+        ui_->setupUi(this);
+        ui_->degreeGroup->setExclusive(true);
+        ui_->degreeGroup->setId(ui_->degreeButton1, 1);
+        ui_->degreeGroup->setId(ui_->degreeButton2, 2);
+        ui_->degreeGroup->setId(ui_->degreeButton3, 3);
+        ui_->equationLayout->setAlignment(Qt::AlignHCenter);
+        ui_->inputErrorIcon->setPixmap(
+            style()->standardIcon(QStyle::SP_MessageBoxWarning).pixmap(16, 16));
 
-        auto* central = new QWidget(this);
-        auto* mainLayout = new QVBoxLayout(central);
-        mainLayout->setContentsMargins(16, 16, 16, 16);
-        mainLayout->setSpacing(12);
-
-        auto* equationGroup = new QGroupBox(QStringLiteral("Уравнение"), central);
-        equationGroup->setObjectName(QStringLiteral("equationGroup"));
-        auto* equationGroupLayout = new QVBoxLayout(equationGroup);
-        equationGroupLayout->setSpacing(12);
-
-        auto* degreeLayout = new QHBoxLayout();
-        degreeLayout->addWidget(new QLabel(QStringLiteral("Степень:"), equationGroup));
-
-        degreeGroup_ = new QButtonGroup(this);
-        degreeGroup_->setExclusive(true);
-
-        for (int degree = 1; degree <= 3; ++degree)
-        {
-            auto* button = new QRadioButton(QString::number(degree), equationGroup);
-            button->setObjectName(QStringLiteral("degreeButton%1").arg(degree));
-            degreeGroup_->addButton(button, degree);
-            degreeLayout->addWidget(button);
-        }
-
-        degreeGroup_->button(1)->setChecked(true);
-        degreeLayout->addStretch();
-        connect(degreeGroup_, &QButtonGroup::idClicked, this, [this](const int degree)
+        connect(ui_->degreeGroup, &QButtonGroup::idClicked, this,
+            [this](const int degree)
         {
             selectedDegree_ = degree;
             rebuildEquationInputs();
-            resultBox_->clear();
-            chartView_->clearGraph();
+            ui_->resultBox->clear();
+            ui_->chartView->clearGraph();
         });
-        equationGroupLayout->addLayout(degreeLayout);
+        connect(ui_->solveButton, &QPushButton::clicked,
+            this, &MainWindow::solve);
+        connect(ui_->clearButton, &QPushButton::clicked,
+            this, &MainWindow::clear);
+        connect(ui_->resetViewButton, &QPushButton::clicked,
+            ui_->chartView, &PolynomialChartView::resetView);
 
-        equationLayout_ = new QHBoxLayout();
-        equationLayout_->setAlignment(Qt::AlignHCenter);
-        equationLayout_->setSpacing(8);
-        equationGroupLayout->addLayout(equationLayout_);
-
-        auto* errorLayout = new QHBoxLayout();
-        errorLayout->addStretch();
-        inputErrorIcon_ = new QLabel(equationGroup);
-        inputErrorIcon_->setObjectName(QStringLiteral("inputErrorIcon"));
-        inputErrorIcon_->setPixmap(style()->standardIcon(QStyle::SP_MessageBoxWarning)
-            .pixmap(16, 16));
-        inputErrorLabel_ = new QLabel(equationGroup);
-        inputErrorLabel_->setObjectName(QStringLiteral("inputErrorLabel"));
-        inputErrorLabel_->setWordWrap(true);
-        errorLayout->addWidget(inputErrorIcon_);
-        errorLayout->addWidget(inputErrorLabel_);
-        errorLayout->addStretch();
-        equationGroupLayout->addLayout(errorLayout);
-
-        auto* actionLayout = new QHBoxLayout();
-        actionLayout->addStretch();
-        solveButton_ = new QPushButton(QStringLiteral("Решить"), equationGroup);
-        solveButton_->setObjectName(QStringLiteral("solveButton"));
-        solveButton_->setDefault(true);
-        solveButton_->setMinimumWidth(130);
-        clearButton_ = new QPushButton(QStringLiteral("Очистить"), equationGroup);
-        clearButton_->setObjectName(QStringLiteral("clearButton"));
-        clearButton_->setMinimumWidth(130);
-        actionLayout->addWidget(solveButton_);
-        actionLayout->addWidget(clearButton_);
-        actionLayout->addStretch();
-        equationGroupLayout->addLayout(actionLayout);
-
-        connect(solveButton_, &QPushButton::clicked, this, &MainWindow::solve);
-        connect(clearButton_, &QPushButton::clicked, this, &MainWindow::clear);
-        mainLayout->addWidget(equationGroup);
-
-        auto* splitter = new QSplitter(Qt::Horizontal, central);
-        splitter->setObjectName(QStringLiteral("contentSplitter"));
-        splitter->setChildrenCollapsible(false);
-
-        auto* resultGroup = new QGroupBox(QStringLiteral("Результат"), splitter);
-        resultGroup->setObjectName(QStringLiteral("resultGroup"));
-        auto* resultLayout = new QVBoxLayout(resultGroup);
-        resultBox_ = new QPlainTextEdit(resultGroup);
-        resultBox_->setObjectName(QStringLiteral("resultBox"));
-        resultBox_->setReadOnly(true);
-        resultLayout->addWidget(resultBox_);
-
-        auto* graphGroup = new QGroupBox(QStringLiteral("График функции"), splitter);
-        graphGroup->setObjectName(QStringLiteral("graphGroup"));
-        auto* graphLayout = new QVBoxLayout(graphGroup);
-        auto* graphHeader = new QHBoxLayout();
-        resetViewButton_ = new QPushButton(QStringLiteral("Сбросить вид"), graphGroup);
-        resetViewButton_->setObjectName(QStringLiteral("resetViewButton"));
-        graphHeader->addStretch();
-        graphHeader->addWidget(resetViewButton_);
-        graphLayout->addLayout(graphHeader);
-        chartView_ = new PolynomialChartView(graphGroup);
-        chartView_->setObjectName(QStringLiteral("chartView"));
-        graphLayout->addWidget(chartView_);
-
-        connect(resetViewButton_, &QPushButton::clicked,
-            chartView_, &PolynomialChartView::resetView);
-
-        splitter->addWidget(resultGroup);
-        splitter->addWidget(graphGroup);
-        splitter->setStretchFactor(0, 35);
-        splitter->setStretchFactor(1, 65);
-        splitter->setSizes({350, 650});
-        mainLayout->addWidget(splitter, 1);
-
-        setCentralWidget(central);
+        ui_->contentSplitter->setStretchFactor(0, 35);
+        ui_->contentSplitter->setStretchFactor(1, 65);
+        ui_->contentSplitter->setSizes({350, 650});
     }
 
     void MainWindow::rebuildEquationInputs(const bool preserveCurrent)
@@ -206,7 +121,7 @@ namespace PolynomialSolver::UI
             }
         }
 
-        while (QLayoutItem* item = equationLayout_->takeAt(0))
+        while (QLayoutItem* item = ui_->equationLayout->takeAt(0))
         {
             delete item->widget();
             delete item;
@@ -237,14 +152,14 @@ namespace PolynomialSolver::UI
             input->setText(valuesByPower_[power]);
             connect(input, &QLineEdit::returnPressed, this, &MainWindow::solve);
             coefficientInputs_.push_back(input);
-            equationLayout_->addWidget(input);
+            ui_->equationLayout->addWidget(input);
 
             auto* term = new QLabel(power == 0
                 ? QStringLiteral(" = 0")
                 : powerText(power) + QStringLiteral(" + "));
             term->setFont(formulaFont);
             term->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
-            equationLayout_->addWidget(term);
+            ui_->equationLayout->addWidget(term);
         }
 
         clearInputError();
@@ -254,7 +169,7 @@ namespace PolynomialSolver::UI
     {
         const bool solved = mode == Mode::Solved;
 
-        for (QAbstractButton* button : degreeGroup_->buttons())
+        for (QAbstractButton* button : ui_->degreeGroup->buttons())
         {
             button->setEnabled(!solved);
         }
@@ -264,16 +179,16 @@ namespace PolynomialSolver::UI
             input->setReadOnly(solved);
         }
 
-        solveButton_->setVisible(!solved);
-        clearButton_->setVisible(solved);
-        resetViewButton_->setEnabled(solved);
+        ui_->solveButton->setVisible(!solved);
+        ui_->clearButton->setVisible(solved);
+        ui_->resetViewButton->setEnabled(solved);
     }
 
     void MainWindow::clearInputError()
     {
-        inputErrorLabel_->clear();
-        inputErrorIcon_->hide();
-        inputErrorLabel_->hide();
+        ui_->inputErrorLabel->clear();
+        ui_->inputErrorIcon->hide();
+        ui_->inputErrorLabel->hide();
 
         for (QLineEdit* input : coefficientInputs_)
         {
@@ -284,9 +199,9 @@ namespace PolynomialSolver::UI
 
     void MainWindow::showInputError(QLineEdit* input, const QString& message)
     {
-        inputErrorLabel_->setText(message);
-        inputErrorIcon_->show();
-        inputErrorLabel_->show();
+        ui_->inputErrorLabel->setText(message);
+        ui_->inputErrorIcon->show();
+        ui_->inputErrorLabel->show();
         input->setProperty("invalid", true);
         QPalette palette = input->palette();
         palette.setColor(QPalette::Base,
@@ -343,14 +258,14 @@ namespace PolynomialSolver::UI
                     .arg(QString::number(solved.residuals[index], 'E', 3));
             }
 
-            resultBox_->setPlainText(lines.join('\n'));
-            chartView_->setPolynomial(solved.coefficients, solved.result.roots);
+            ui_->resultBox->setPlainText(lines.join('\n'));
+            ui_->chartView->setPolynomial(solved.coefficients, solved.result.roots);
             setMode(Mode::Solved);
         }
         catch (const std::exception& exception)
         {
-            resultBox_->clear();
-            chartView_->clearGraph();
+            ui_->resultBox->clear();
+            ui_->chartView->clearGraph();
             QMessageBox::critical(
                 this,
                 QStringLiteral("Ошибка"),
@@ -361,8 +276,8 @@ namespace PolynomialSolver::UI
     void MainWindow::clear()
     {
         valuesByPower_ = {};
-        resultBox_->clear();
-        chartView_->clearGraph();
+        ui_->resultBox->clear();
+        ui_->chartView->clearGraph();
         setMode(Mode::Editing);
         rebuildEquationInputs(false);
         coefficientInputs_.front()->setFocus(Qt::OtherFocusReason);

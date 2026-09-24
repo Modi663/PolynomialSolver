@@ -25,6 +25,14 @@ private:
     }
 
 private slots:
+    void loadsDesignerForm()
+    {
+        MainWindow window;
+
+        QVERIFY(window.findChild<QWidget*>(QStringLiteral("centralWidget")) != nullptr);
+        QVERIFY(window.findChild<QWidget*>(QStringLiteral("equationInputHost")) != nullptr);
+    }
+
     void usesNativeEquationFirstLayout()
     {
         MainWindow window;
