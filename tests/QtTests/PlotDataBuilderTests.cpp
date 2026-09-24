@@ -94,6 +94,23 @@ private slots:
         QVERIFY(std::isfinite(viewport.y.maximum));
         QVERIFY(viewport.y.minimum < viewport.y.maximum);
     }
+
+    void keepsFitRangeUsableAroundLargeFiniteRoots()
+    {
+        for (const double root : {1e20, 1e308, -1e308})
+        {
+            const auto viewport = PlotDataBuilder::fit(
+                {1.0, -root},
+                {{root, 0.0}});
+
+            QVERIFY(std::isfinite(viewport.x.minimum));
+            QVERIFY(std::isfinite(viewport.x.maximum));
+            QVERIFY(std::isfinite(viewport.x.span()));
+            QVERIFY(viewport.x.minimum < viewport.x.maximum);
+            QVERIFY(viewport.x.minimum <= root);
+            QVERIFY(root <= viewport.x.maximum);
+        }
+    }
 };
 
 QTEST_APPLESS_MAIN(PlotDataBuilderTests)

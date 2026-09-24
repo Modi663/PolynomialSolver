@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <numeric>
 
 namespace
 {
@@ -24,6 +25,48 @@ namespace
     {
         return std::abs(root.imag()) <=
             1e-8 * (1.0 + std::abs(root.real()));
+    }
+
+    PolynomialSolver::UI::AxisRange centeredFiniteRange(
+        const double center,
+        const double requestedWidth)
+    {
+        const double halfWidth = requestedWidth / 2.0;
+        const PolynomialSolver::UI::AxisRange requested{
+            center - halfWidth,
+            center + halfWidth
+        };
+
+        if (std::isfinite(requested.minimum) &&
+            std::isfinite(requested.maximum) &&
+            requested.minimum < requested.maximum &&
+            std::isfinite(requested.span()))
+        {
+            return requested;
+        }
+
+        const double infinity = std::numeric_limits<double>::infinity();
+        double minimum = std::nextafter(center, -infinity);
+        double maximum = std::nextafter(center, infinity);
+
+        if (!std::isfinite(minimum))
+        {
+            minimum = center;
+        }
+
+        if (!std::isfinite(maximum))
+        {
+            maximum = center;
+        }
+
+        const PolynomialSolver::UI::AxisRange adjacent{minimum, maximum};
+        if (adjacent.minimum < adjacent.maximum &&
+            std::isfinite(adjacent.span()))
+        {
+            return adjacent;
+        }
+
+        return {-3.0, 3.0};
     }
 }
 
@@ -50,7 +93,7 @@ namespace PolynomialSolver::UI
         {
             const auto [minimum, maximum] = std::minmax_element(
                 realRoots.begin(), realRoots.end());
-            centerX = (*minimum + *maximum) / 2.0;
+            centerX = std::midpoint(*minimum, *maximum);
             rootSpan = *maximum - *minimum;
         }
         else if (coefficients.size() == 3 && coefficients[0] != 0.0)
@@ -63,11 +106,13 @@ namespace PolynomialSolver::UI
             }
         }
 
-        const double width = std::max(6.0, rootSpan + 4.0);
-        const AxisRange xRange{
-            centerX - width / 2.0,
-            centerX + width / 2.0
-        };
+        constexpr double maximumAxisSpan =
+            std::numeric_limits<double>::max() / 2.0;
+        const double width = !std::isfinite(rootSpan) ||
+            rootSpan >= maximumAxisSpan - 4.0
+            ? maximumAxisSpan
+            : std::max(6.0, rootSpan + 4.0);
+        const AxisRange xRange = centeredFiniteRange(centerX, width);
 
         double maximumAbsoluteY = 1.0;
 
