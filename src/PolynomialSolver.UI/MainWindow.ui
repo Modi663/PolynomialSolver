@@ -97,7 +97,94 @@
           </widget>
          </item>
          <item>
+          <widget class="QRadioButton" name="degreeButton4">
+           <property name="text">
+            <string>4</string>
+           </property>
+           <attribute name="buttonGroup">
+            <string notr="true">degreeGroup</string>
+           </attribute>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="degreeButton5">
+           <property name="text">
+            <string>5</string>
+           </property>
+           <attribute name="buttonGroup">
+            <string notr="true">degreeGroup</string>
+           </attribute>
+          </widget>
+         </item>
+         <item>
           <spacer name="degreeSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="methodLayout" stretch="0,0,0,0,0">
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="methodLabel">
+           <property name="text">
+            <string>Метод:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="methodComboBox">
+           <property name="minimumSize">
+            <size>
+             <width>120</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="editable">
+            <bool>false</bool>
+           </property>
+           <item>
+            <property name="text">
+             <string>Аналитический</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Бисекция</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="precisionLabel">
+           <property name="text">
+            <string>Знаков после запятой:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSpinBox" name="decimalPlacesSpinBox">
+           <property name="minimum">
+            <number>6</number>
+           </property>
+           <property name="maximum">
+            <number>15</number>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer">
            <property name="orientation">
             <enum>Qt::Orientation::Horizontal</enum>
            </property>

@@ -16,6 +16,8 @@
 #include <QSizePolicy>
 #include <QSplitter>
 #include <QStyle>
+#include <QComboBox>
+#include <QSpinBox>
 
 #include <cmath>
 #include <utility>
@@ -29,6 +31,8 @@ namespace
         case 1: return QStringLiteral("x");
         case 2: return QStringLiteral("x²");
         case 3: return QStringLiteral("x³");
+        case 4: return QStringLiteral("x⁴");
+        case 5: return QStringLiteral("x⁵");
         default: return {};
         }
     }
@@ -64,6 +68,15 @@ namespace
             .arg(formatNumber(std::abs(imaginary)));
     }
 
+    QString formatNumericalRoot(double value, int decimalPlaces)
+    {
+        if (std::abs(value) < 0.5 * std::pow(10.0, -decimalPlaces))
+        {
+            value = 0.0;
+        }
+
+        return QString::number(value, 'f', decimalPlaces);
+    }
 }
 
 namespace PolynomialSolver::UI
@@ -86,6 +99,13 @@ namespace PolynomialSolver::UI
         ui_->degreeGroup->setId(ui_->degreeButton1, 1);
         ui_->degreeGroup->setId(ui_->degreeButton2, 2);
         ui_->degreeGroup->setId(ui_->degreeButton3, 3);
+        ui_->degreeGroup->setId(ui_->degreeButton4, 4);
+        ui_->degreeGroup->setId(ui_->degreeButton5, 5);
+
+        connect(
+            ui_->methodComboBox, &QComboBox::currentIndexChanged,
+            this, &MainWindow::updateSolverControls);
+
         ui_->equationLayout->setAlignment(Qt::AlignHCenter);
         ui_->inputErrorIcon->setPixmap(
             style()->standardIcon(QStyle::SP_MessageBoxWarning).pixmap(16, 16));
@@ -95,6 +115,7 @@ namespace PolynomialSolver::UI
         {
             selectedDegree_ = degree;
             rebuildEquationInputs();
+            updateSolverControls();
             ui_->resultBox->clear();
             ui_->chartView->clearGraph();
         });
@@ -140,7 +161,7 @@ namespace PolynomialSolver::UI
             input->setObjectName(QStringLiteral("coefficientPower%1").arg(power));
             input->setAlignment(Qt::AlignCenter);
             input->setFont(formulaFont);
-            input->setFixedWidth(96);
+            input->setFixedWidth(selectedDegree_ >= 4 ? 80 : 96);
 
             if (valuesByPower_[power].isNull())
             {
@@ -165,8 +186,28 @@ namespace PolynomialSolver::UI
         clearInputError();
     }
 
+    void MainWindow::updateSolverControls()
+    {
+        const bool editing = mode_ == Mode::Editing;
+
+        if (selectedDegree_ > 3)
+        {
+            ui_->methodComboBox->setCurrentIndex(1);
+        }
+
+        ui_->methodComboBox->setEnabled(
+            editing && selectedDegree_ <= 3);
+
+        const bool numerical =
+            ui_->methodComboBox->currentIndex() == 1;
+
+        ui_->decimalPlacesSpinBox->setVisible(editing && numerical);
+        ui_->precisionLabel->setVisible(editing && numerical);
+    }
+
     void MainWindow::setMode(const Mode mode)
     {
+        mode_ = mode;
         const bool solved = mode == Mode::Solved;
 
         for (QAbstractButton* button : ui_->degreeGroup->buttons())
@@ -182,6 +223,7 @@ namespace PolynomialSolver::UI
         ui_->solveButton->setVisible(!solved);
         ui_->clearButton->setVisible(solved);
         ui_->resetViewButton->setEnabled(solved);
+        updateSolverControls();
     }
 
     void MainWindow::clearInputError()
@@ -241,19 +283,35 @@ namespace PolynomialSolver::UI
         try
         {
             const Core::SolvedPolynomial solved =
-                solver_.solve(std::move(coefficients));
+                ui_->methodComboBox->currentIndex() == 1
+                    ? solver_.solveNumerically(
+                          std::move(coefficients),
+                          ui_->decimalPlacesSpinBox->value())
+                    : solver_.solve(std::move(coefficients));
 
             QStringList lines;
             lines << (solved.result.method == Core::SolutionMethod::Analytical
                 ? QStringLiteral("Метод: аналитический")
-                : QStringLiteral("Метод: численный"));
+                : QStringLiteral("Метод: бисекция"));
             lines << QString() << QStringLiteral("Корни:");
+            if (solved.result.roots.empty())
+            {
+                lines << QStringLiteral("Действительных корней нет.");
+            }
 
             for (std::size_t index = 0; index < solved.result.roots.size(); ++index)
             {
+                const auto& root = solved.result.roots[index];
+
+                const QString rootText =
+                    solved.result.method == Core::SolutionMethod::Numerical
+                        ? formatNumericalRoot(
+                              root.real(), ui_->decimalPlacesSpinBox->value())
+                        : formatRoot(root);
+
                 lines << QStringLiteral("x%1 = %2")
-                    .arg(index + 1)
-                    .arg(formatRoot(solved.result.roots[index]));
+                             .arg(index + 1)
+                             .arg(rootText);
                 lines << QStringLiteral("    |P(x)| = %1")
                     .arg(QString::number(solved.residuals[index], 'E', 3));
             }

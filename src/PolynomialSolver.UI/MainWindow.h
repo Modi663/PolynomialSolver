@@ -35,10 +35,13 @@ namespace PolynomialSolver::UI
         std::unique_ptr<::Ui::MainWindow> ui_;
         Core::PolynomialSolverService solver_;
         int selectedDegree_{1};
-        std::array<QString, 4> valuesByPower_{};
+        std::array<QString, 6> valuesByPower_{};
 
         std::vector<QLineEdit*> coefficientInputs_;
 
+        Mode mode_{Mode::Editing};
+
+        void updateSolverControls();
         void buildInterface();
         void rebuildEquationInputs(bool preserveCurrent = true);
         void setMode(Mode mode);

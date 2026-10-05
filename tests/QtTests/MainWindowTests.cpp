@@ -1,5 +1,8 @@
 #include "MainWindow.h"
+#include "PolynomialChartView.h"
 
+#include <QComboBox>
+#include <QSpinBox>
 #include <QAbstractButton>
 #include <QApplication>
 #include <QGroupBox>
@@ -173,6 +176,99 @@ private slots:
 
         QTRY_VERIFY(window.findChild<QPlainTextEdit*>(QStringLiteral("resultBox"))
             ->toPlainText().contains(QStringLiteral("x1 = 4")));
+    }
+
+    void numericalMethodUsesPrecisionAndLocksSettings()
+    {
+        MainWindow window;
+
+        auto* method =
+            window.findChild<QComboBox*>("methodComboBox");
+        auto* precision =
+            window.findChild<QSpinBox*>("decimalPlacesSpinBox");
+
+        QVERIFY(method != nullptr);
+        QVERIFY(precision != nullptr);
+        QVERIFY(!precision->isEnabled());
+
+        method->setCurrentIndex(1);
+        QVERIFY(precision->isEnabled());
+        precision->setValue(3);
+
+        coefficient(window, 1)->setText("4");
+        coefficient(window, 0)->setText("-5");
+        window.findChild<QPushButton*>("solveButton")->click();
+
+        const QString result =
+            window.findChild<QPlainTextEdit*>("resultBox")->toPlainText();
+
+        QVERIFY(result.contains(QStringLiteral("Метод: бисекция")));
+        QVERIFY(result.contains(QStringLiteral("x1 = 1.250")));
+        QVERIFY(!method->isEnabled());
+        QVERIFY(!precision->isEnabled());
+
+        window.findChild<QPushButton*>("clearButton")->click();
+
+        QVERIFY(method->isEnabled());
+        QVERIFY(precision->isEnabled());
+        QCOMPARE(precision->value(), 3);
+    }
+
+    void fifthDegreeAutomaticallyUsesBisection()
+    {
+        MainWindow window;
+
+        auto* method =
+            window.findChild<QComboBox*>("methodComboBox");
+        auto* degree =
+            window.findChild<QAbstractButton*>("degreeButton5");
+
+        QVERIFY(method != nullptr);
+        QVERIFY(degree != nullptr);
+
+        degree->click();
+
+        QCOMPARE(method->currentIndex(), 1);
+        QVERIFY(!method->isEnabled());
+
+        const std::vector<double> values{1, 0, -5, 0, 4, 0};
+
+        for (int index = 0; index < 6; ++index)
+        {
+            auto* input = coefficient(window, 5 - index);
+            QVERIFY(input != nullptr);
+            input->setText(QString::number(values[index]));
+        }
+
+        window.findChild<QPushButton*>("solveButton")->click();
+
+        const auto* chart =
+            window.findChild<PolynomialSolver::UI::PolynomialChartView*>(
+                "chartView");
+
+        QVERIFY(chart != nullptr);
+        QVERIFY(chart->hasPolynomial());
+        QCOMPARE(chart->rootMarkerCount(), qsizetype{5});
+    }
+
+    void numericalMethodShowsAbsenceOfRealRoots()
+    {
+        MainWindow window;
+
+        window.findChild<QAbstractButton*>("degreeButton2")->click();
+        window.findChild<QComboBox*>("methodComboBox")->setCurrentIndex(1);
+
+        coefficient(window, 2)->setText("1");
+        coefficient(window, 1)->setText("0");
+        coefficient(window, 0)->setText("1");
+
+        window.findChild<QPushButton*>("solveButton")->click();
+
+        const QString result =
+            window.findChild<QPlainTextEdit*>("resultBox")->toPlainText();
+
+        QVERIFY(result.contains(
+            QStringLiteral("Действительных корней нет.")));
     }
 };
 
