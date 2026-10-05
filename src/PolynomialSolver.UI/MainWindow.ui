@@ -38,13 +38,22 @@
     </property>
     <item>
      <widget class="QGroupBox" name="equationGroup">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="toolTipDuration">
+       <number>-6</number>
+      </property>
       <property name="title">
        <string>Уравнение</string>
       </property>
       <layout class="QVBoxLayout" name="equationGroupLayout">
-       <property name="spacing">
-        <number>12</number>
-       </property>
        <item>
         <layout class="QHBoxLayout" name="degreeLayout">
          <item>
@@ -103,25 +112,23 @@
         </layout>
        </item>
        <item>
-        <widget class="QWidget" name="equationInputHost">
-         <layout class="QHBoxLayout" name="equationLayout">
-          <property name="spacing">
-           <number>8</number>
-          </property>
-          <property name="leftMargin">
-           <number>0</number>
-          </property>
-          <property name="topMargin">
-           <number>0</number>
-          </property>
-          <property name="rightMargin">
-           <number>0</number>
-          </property>
-          <property name="bottomMargin">
-           <number>0</number>
-          </property>
-         </layout>
-        </widget>
+        <layout class="QHBoxLayout" name="equationLayout">
+         <property name="spacing">
+          <number>8</number>
+         </property>
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+        </layout>
        </item>
        <item>
         <layout class="QHBoxLayout" name="errorLayout">
@@ -258,7 +265,10 @@
        <property name="title">
         <string>График функции</string>
        </property>
-       <layout class="QVBoxLayout" name="graphLayout" stretch="0,1">
+       <layout class="QVBoxLayout" name="graphLayout">
+        <property name="spacing">
+         <number>6</number>
+        </property>
         <item>
          <layout class="QHBoxLayout" name="graphHeader">
           <item>

@@ -31,7 +31,7 @@ private slots:
         MainWindow window;
 
         QVERIFY(window.findChild<QWidget*>(QStringLiteral("centralWidget")) != nullptr);
-        QVERIFY(window.findChild<QWidget*>(QStringLiteral("equationInputHost")) != nullptr);
+        QVERIFY(window.findChild<QHBoxLayout*>(QStringLiteral("equationLayout")) != nullptr);
     }
 
     void hiddenInputErrorRowDoesNotReserveHeight()
