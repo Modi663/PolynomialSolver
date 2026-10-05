@@ -189,10 +189,10 @@ private slots:
 
         QVERIFY(method != nullptr);
         QVERIFY(precision != nullptr);
-        QVERIFY(!precision->isEnabled());
+        QVERIFY(precision->isHidden());
 
         method->setCurrentIndex(1);
-        QVERIFY(precision->isEnabled());
+        QVERIFY(!precision->isHidden());
         precision->setValue(3);
 
         coefficient(window, 1)->setText("4");
@@ -205,12 +205,12 @@ private slots:
         QVERIFY(result.contains(QStringLiteral("Метод: бисекция")));
         QVERIFY(result.contains(QStringLiteral("x1 = 1.250")));
         QVERIFY(!method->isEnabled());
-        QVERIFY(!precision->isEnabled());
+        QVERIFY(precision->isHidden());
 
         window.findChild<QPushButton*>("clearButton")->click();
 
         QVERIFY(method->isEnabled());
-        QVERIFY(precision->isEnabled());
+        QVERIFY(!precision->isHidden());
         QCOMPARE(precision->value(), 3);
     }
 
