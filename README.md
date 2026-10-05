@@ -1,0 +1,193 @@
+# PolynomialSolver
+
+PolynomialSolver — нативное Windows x64-приложение для решения линейных, квадратных и кубических уравнений. Интерфейс построен на Qt 6 Widgets и Qt Charts, математическое ядро написано на чистом C++20 и не зависит от Qt.
+
+Приложение показывает найденные корни, метод решения, невязку `|P(x)|` для каждого корня и интерактивный график полинома. Числа можно вводить как с точкой, так и с запятой. Окно использует нативное оформление Qt для Windows: формула занимает верхнюю часть, а снизу расположены изменяемые по ширине панели результата и графика.
+
+## Требования
+
+- Windows x64;
+- Qt 6.11 или новее с компонентами Widgets, Charts и Test;
+- MinGW 13.1;
+- CMake 3.25 или новее;
+- Ninja.
+
+Основная конфигурация проекта проверена с:
+
+- Qt из `C:\Qt\6.11.2\mingw_64`;
+- MinGW из `C:\Qt\Tools\mingw1310_64`;
+- CMake из `C:\Qt\Tools\CMake_64`;
+- Ninja из `C:\Qt\Tools\Ninja`.
+
+Эти пути уже записаны в `CMakePresets.json`, поэтому настраивать переменные среды не требуется.
+
+## Сборка и тестирование
+
+Команды ниже выполняются в PowerShell из корня репозитория:
+
+```powershell
+$cmake = 'C:\Qt\Tools\CMake_64\bin\cmake.exe'
+$ctest = 'C:\Qt\Tools\CMake_64\bin\ctest.exe'
+
+& $cmake --preset debug
+& $cmake --build --preset debug
+& $ctest --preset debug
+```
+
+Release-сборка и создание автономной папки:
+
+```powershell
+& $cmake --preset release
+& $cmake --build --preset release
+& $ctest --preset release
+& $cmake --install build/release
+```
+
+Готовое приложение запускается из:
+
+```powershell
+.\dist\PolynomialSolver\bin\PolynomialSolver.exe
+```
+
+Папка `dist\PolynomialSolver` содержит Qt DLL, плагины платформы и MinGW runtime. Установленная копия не требует Qt в `PATH`.
+
+## Работа в Qt Creator
+
+1. Откройте корневой `CMakeLists.txt` через «Файл → Открыть файл или проект».
+2. На экране настройки выберите preset `PolynomialSolver: Qt Debug` или `PolynomialSolver: Qt Release`.
+3. Нажмите «Настроить проект». Компилятор MinGW, Qt, CMake, Ninja и GDB берутся из `CMakePresets.json`.
+4. Соберите проект сочетанием Ctrl+B, запустите Ctrl+R или начните отладку клавишей F5.
+
+Если presets были изменены при уже открытом проекте, выберите «Сборка → Перезагрузить CMake Presets». Локальные настройки Qt Creator сохраняются в игнорируемом каталоге `.qtcreator`.
+
+Для визуального редактирования окна дважды щёлкните `src/PolynomialSolver.UI/MainWindow.ui`: Qt Creator автоматически откроет форму в режиме «Дизайн». Статическая компоновка хранится в форме, а поля коэффициентов добавляются программно, поскольку их количество зависит от выбранной степени.
+
+## Управление
+
+1. Выберите степень уравнения от 1 до 3.
+2. Введите коэффициенты при `x³ … x⁰`. Введённые значения сохраняются при переключении степени.
+3. Нажмите «Решить» или Enter.
+4. После решения форма блокируется. Кнопка «Очистить» возвращает её в режим ввода и сбрасывает результат с графиком.
+
+Нижнюю границу между аналитическими результатами и графиком можно перемещать мышью. При ошибке ввода приложение показывает системный значок предупреждения, выделяет первое неверное поле и переводит в него фокус.
+
+На графике:
+
+- колесо мыши масштабирует область относительно курсора;
+- перетаскивание левой кнопкой перемещает видимый диапазон;
+- «Сбросить вид» возвращает автоматически рассчитанный диапазон;
+- синяя линия показывает полином, красные точки — различные вещественные корни.
+
+## Архитектура
+
+Проект разделён на два модуля: интерфейс зависит от математического ядра, а `Core` не использует Qt. Оркестрация выбора решателя и расчёта невязок находится в `PolynomialSolverService`, поэтому математические правила не попадают в обработчики окна.
+
+```mermaid
+classDiagram
+    direction LR
+
+    class MainWindow {
+        -Mode mode
+        +solve()
+        +clear()
+    }
+
+    class PolynomialChartView {
+        +setPolynomial(coefficients, roots)
+        +clearGraph()
+        +resetView()
+    }
+
+    class PlotDataBuilder {
+        +fit(coefficients, roots) PlotViewport
+        +sample(coefficients, range, width) PlotSegments
+        +realRootMarkers(roots) QVector~QPointF~
+        +gridStep(range, pixels) double
+    }
+
+    class PolynomialSolverService {
+        +solve(coefficients) SolvedPolynomial
+    }
+
+    class SolvedPolynomial {
+        +coefficients
+        +result
+        +residuals
+    }
+
+    class Polynomial
+    class LinearSolver
+    class QuadraticSolver
+    class CubicSolver
+    class RootVerifier
+
+    MainWindow --> PolynomialSolverService
+    MainWindow *-- PolynomialChartView
+    PolynomialChartView --> PlotDataBuilder
+    PolynomialSolverService --> SolvedPolynomial
+    PolynomialSolverService --> Polynomial
+    PolynomialSolverService --> LinearSolver
+    PolynomialSolverService --> QuadraticSolver
+    PolynomialSolverService --> CubicSolver
+    PolynomialSolverService --> RootVerifier
+```
+
+Последовательность решения и обработки ошибок:
+
+```mermaid
+sequenceDiagram
+    actor User as Пользователь
+    participant UI as MainWindow
+    participant Core as PolynomialSolverService
+    participant Chart as PolynomialChartView
+
+    User->>UI: Решить / Enter
+    UI->>UI: Разобрать и проверить коэффициенты
+    alt Ошибка ввода
+        UI-->>User: Подсветить первое поле и показать текст ошибки
+    else Ввод корректен
+        UI->>Core: solve(coefficients)
+        Core->>Core: Создать Polynomial и выбрать решатель
+        alt Исключение или нечисловой корень
+            Core-->>UI: exception
+            UI-->>User: Критическое сообщение
+        else Решение найдено
+            Core->>Core: Вычислить невязки
+            Core-->>UI: SolvedPolynomial
+            UI->>Chart: setPolynomial(coefficients, roots)
+            UI-->>User: Показать корни и заблокировать форму
+        end
+    end
+```
+
+Состояния главного окна:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Editing
+    Editing --> Editing: Ошибка ввода или исключение
+    Editing --> Solved: Решение успешно
+    Solved --> Editing: Очистить
+```
+
+## Почему Qt Widgets и Qt Charts
+
+Qt Widgets сохраняет простую модель настольного приложения, системное оформление элементов, нативное управление клавиатурой и предсказуемую компоновку на Windows. Qt Charts предоставляет оси, подписи, сетку и серии данных, а собственный `PlotDataBuilder` оставляет вычисление диапазонов и выборки отдельно тестируемым.
+
+Рисование через `QPainter` уменьшило бы число зависимостей, но потребовало бы самостоятельно реализовать оси, подписи, масштабирование и DPI. QML удобен для анимаций и адаптивных интерфейсов, однако добавил бы второй UI-язык и не дал преимуществ для этой формы.
+
+## Тесты
+
+Qt Test покрывает:
+
+- прежние 27 сценариев математического ядра;
+- маршрутизацию решателей, невязки и ошибки `PolynomialSolverService`;
+- fit-диапазоны, адаптивную выборку, разрывы кривой и шаг сетки;
+- локализованный ввод, переключение степеней и состояния формы;
+- zoom, pan, resize, сброс диапазона и очистку графика.
+
+UI-тесты запускаются с `QT_QPA_PLATFORM=offscreen` и не зависят от снимков экрана.
+
+## Лицензирование
+
+Перед внешним распространением приложения необходимо отдельно проверить условия лицензирования используемой поставки Qt и модуля Qt Charts.

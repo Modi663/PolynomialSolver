@@ -1,4 +1,3 @@
-#include "pch.h"
 #include "CubicSolver.h"
 
 #include <algorithm>
