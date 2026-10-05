@@ -163,7 +163,7 @@ namespace PolynomialSolver::UI
             input->setFont(formulaFont);
             input->setFixedWidth(selectedDegree_ >= 4 ? 80 : 96);
 
-            if (valuesByPower_[power].isNull())
+            if (!coefficientEdited_[power])
             {
                 valuesByPower_[power] = power == selectedDegree_
                     ? QStringLiteral("1")
@@ -171,6 +171,13 @@ namespace PolynomialSolver::UI
             }
 
             input->setText(valuesByPower_[power]);
+            const auto markEdited = [this, power]
+            {
+                coefficientEdited_[power] = true;
+            };
+
+            connect(input, &QLineEdit::textChanged, this, markEdited);
+            connect(input, &QLineEdit::textEdited, this, markEdited);
             connect(input, &QLineEdit::returnPressed, this, &MainWindow::solve);
             coefficientInputs_.push_back(input);
             ui_->equationLayout->addWidget(input);
@@ -334,6 +341,7 @@ namespace PolynomialSolver::UI
     void MainWindow::clear()
     {
         valuesByPower_ = {};
+        coefficientEdited_ = {};
         ui_->resultBox->clear();
         ui_->chartView->clearGraph();
         setMode(Mode::Editing);

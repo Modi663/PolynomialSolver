@@ -270,6 +270,40 @@ private slots:
         QVERIFY(result.contains(
             QStringLiteral("Действительных корней нет.")));
     }
+
+    void templateDoesNotAccumulateLeadingOnes()
+    {
+        MainWindow window;
+
+        for (int degree : {1, 2, 3, 4, 5, 4, 3, 2, 1})
+        {
+            window.findChild<QAbstractButton*>(
+                      QStringLiteral("degreeButton%1").arg(degree))->click();
+
+            for (int power = degree; power >= 0; --power)
+            {
+                QCOMPARE(
+                    coefficient(window, power)->text(),
+                    power == degree
+                        ? QStringLiteral("1")
+                        : QStringLiteral("0"));
+            }
+        }
+    }
+
+    void preservesManuallyEnteredOne()
+    {
+        MainWindow window;
+
+        auto* input = coefficient(window, 1);
+        input->selectAll();
+        QTest::keyClicks(input, QStringLiteral("1"));
+
+        window.findChild<QAbstractButton*>("degreeButton2")->click();
+
+        QCOMPARE(coefficient(window, 2)->text(), QStringLiteral("1"));
+        QCOMPARE(coefficient(window, 1)->text(), QStringLiteral("1"));
+    }
 };
 
 QTEST_MAIN(MainWindowTests)
