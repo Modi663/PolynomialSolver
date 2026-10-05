@@ -18,5 +18,9 @@ namespace PolynomialSolver::Core
     public:
         [[nodiscard]] SolvedPolynomial solve(
             std::vector<double> coefficients) const;
+
+        [[nodiscard]] SolvedPolynomial solveNumerically(
+            std::vector<double> coefficients,
+            int decimalPlaces = 6) const;
     };
 }

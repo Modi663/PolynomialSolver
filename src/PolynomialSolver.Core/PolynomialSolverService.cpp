@@ -5,6 +5,7 @@
 #include "Polynomial.h"
 #include "QuadraticSolver.h"
 #include "RootVerifier.h"
+#include "BisectionSolver.h"
 
 #include <cmath>
 #include <stdexcept>
@@ -52,6 +53,43 @@ namespace PolynomialSolver::Core
             }
 
             residuals.push_back(RootVerifier::residual(polynomial, root));
+        }
+
+        return {
+            std::move(coefficients),
+            std::move(result),
+            std::move(residuals)
+        };
+    }
+
+    SolvedPolynomial PolynomialSolverService::solveNumerically(
+        std::vector<double> coefficients,
+        int decimalPlaces) const
+    {
+        if (coefficients.size() < 2 || coefficients.size() > 6)
+        {
+            throw std::invalid_argument(
+                "Количество коэффициентов должно быть от 2 до 6.");
+        }
+
+        const Polynomial polynomial(coefficients);
+        SolveResult result = BisectionSolver::solve(
+            polynomial, decimalPlaces);
+
+        std::vector<double> residuals;
+        residuals.reserve(result.roots.size());
+
+        for (const auto& root : result.roots)
+        {
+            const double residual = RootVerifier::residual(polynomial, root);
+
+            if (!std::isfinite(residual))
+            {
+                throw std::overflow_error(
+                    "Невязка корня вышла за пределы типа double.");
+            }
+
+            residuals.push_back(residual);
         }
 
         return {

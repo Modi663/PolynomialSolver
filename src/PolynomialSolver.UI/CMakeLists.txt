@@ -4,6 +4,10 @@ add_library(PolynomialSolver.UI STATIC
     MainWindow.ui
     PlotDataBuilder.cpp
     PolynomialChartView.cpp
+    CoefficientParser.h
+    MainWindow.h
+    PlotDataBuilder.h
+    PolynomialChartView.h
 )
 
 target_include_directories(PolynomialSolver.UI
