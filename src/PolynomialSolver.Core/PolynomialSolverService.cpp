@@ -1,11 +1,11 @@
 #include "PolynomialSolverService.h"
 
+#include "BisectionSolver.h"
 #include "CubicSolver.h"
 #include "LinearSolver.h"
 #include "Polynomial.h"
 #include "QuadraticSolver.h"
 #include "RootVerifier.h"
-#include "BisectionSolver.h"
 
 #include <cmath>
 #include <stdexcept>
@@ -30,14 +30,18 @@ namespace PolynomialSolver::Core
         case 1:
             result = LinearSolver::solve(polynomial);
             break;
+
         case 2:
             result = QuadraticSolver::solve(polynomial);
             break;
+
         case 3:
             result = CubicSolver::solve(polynomial);
             break;
+
         default:
-            throw std::logic_error("Polynomial degree is not implemented.");
+            throw std::logic_error(
+                "Polynomial degree is not implemented.");
         }
 
         std::vector<double> residuals;
@@ -45,14 +49,16 @@ namespace PolynomialSolver::Core
 
         for (const auto& root : result.roots)
         {
-            if (!std::isfinite(root.real()) || !std::isfinite(root.imag()))
+            if (!std::isfinite(root.real())
+                || !std::isfinite(root.imag()))
             {
                 throw std::overflow_error(
                     "Коэффициенты слишком сильно различаются по величине "
                     "для устойчивого вычисления корней.");
             }
 
-            residuals.push_back(RootVerifier::residual(polynomial, root));
+            residuals.push_back(
+                RootVerifier::residual(polynomial, root));
         }
 
         return {
@@ -64,6 +70,9 @@ namespace PolynomialSolver::Core
 
     SolvedPolynomial PolynomialSolverService::solveNumerically(
         std::vector<double> coefficients,
+        double left,
+        double right,
+        double step,
         int decimalPlaces) const
     {
         if (coefficients.size() < 2 || coefficients.size() > 6)
@@ -73,15 +82,21 @@ namespace PolynomialSolver::Core
         }
 
         const Polynomial polynomial(coefficients);
+
         SolveResult result = BisectionSolver::solve(
-            polynomial, decimalPlaces);
+            polynomial,
+            left,
+            right,
+            step,
+            decimalPlaces);
 
         std::vector<double> residuals;
         residuals.reserve(result.roots.size());
 
         for (const auto& root : result.roots)
         {
-            const double residual = RootVerifier::residual(polynomial, root);
+            const double residual =
+                RootVerifier::residual(polynomial, root);
 
             if (!std::isfinite(residual))
             {

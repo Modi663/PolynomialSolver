@@ -20,6 +20,7 @@
 #include <QSpinBox>
 
 #include <cmath>
+#include <initializer_list>
 #include <utility>
 
 namespace
@@ -105,6 +106,12 @@ namespace PolynomialSolver::UI
         connect(
             ui_->methodComboBox, &QComboBox::currentIndexChanged,
             this, &MainWindow::updateSolverControls);
+
+        for (QLineEdit* input : {
+                 ui_->leftBoundInput, ui_->rightBoundInput, ui_->scanStepInput})
+        {
+            connect(input, &QLineEdit::returnPressed, this, &MainWindow::solve);
+        }
 
         ui_->equationLayout->setAlignment(Qt::AlignHCenter);
         ui_->inputErrorIcon->setPixmap(
@@ -210,6 +217,13 @@ namespace PolynomialSolver::UI
 
         ui_->decimalPlacesSpinBox->setVisible(editing && numerical);
         ui_->precisionLabel->setVisible(editing && numerical);
+        for (QWidget* control : std::initializer_list<QWidget*>{
+                 ui_->leftBoundInput, ui_->leftBoundInputLabel,
+                 ui_->rightBoundInput, ui_->rightBoundInputLabel,
+                 ui_->scanStepInput, ui_->scanStepInputLabel})
+        {
+            control->setVisible(editing && numerical);
+        }
     }
 
     void MainWindow::setMode(const Mode mode)
@@ -239,7 +253,10 @@ namespace PolynomialSolver::UI
         ui_->inputErrorIcon->hide();
         ui_->inputErrorLabel->hide();
 
-        for (QLineEdit* input : coefficientInputs_)
+        auto inputs = coefficientInputs_;
+        inputs.insert(inputs.end(), {
+            ui_->leftBoundInput, ui_->rightBoundInput, ui_->scanStepInput});
+        for (QLineEdit* input : inputs)
         {
             input->setProperty("invalid", false);
             input->setPalette(QApplication::palette(input));
@@ -287,12 +304,48 @@ namespace PolynomialSolver::UI
             return;
         }
 
+        double left = 0.0;
+        double right = 0.0;
+        double step = 0.0;
+        if (ui_->methodComboBox->currentIndex() == 1)
+        {
+            const std::array<QLineEdit*, 3> inputs{
+                ui_->leftBoundInput, ui_->rightBoundInput, ui_->scanStepInput};
+            std::array<double, 3> values{};
+            for (std::size_t index = 0; index < inputs.size(); ++index)
+            {
+                const auto value = CoefficientParser::parse(
+                    inputs[index]->text(), QLocale::system());
+                if (!value)
+                {
+                    showInputError(inputs[index], QStringLiteral("Введите конечное число."));
+                    return;
+                }
+                values[index] = *value;
+            }
+            left = values[0];
+            right = values[1];
+            step = values[2];
+            if (left >= right)
+            {
+                showInputError(ui_->rightBoundInput,
+                    QStringLiteral("Правая граница должна быть больше левой."));
+                return;
+            }
+            if (step <= 0.0)
+            {
+                showInputError(ui_->scanStepInput, QStringLiteral("Шаг должен быть больше нуля."));
+                return;
+            }
+        }
+
         try
         {
             const Core::SolvedPolynomial solved =
                 ui_->methodComboBox->currentIndex() == 1
                     ? solver_.solveNumerically(
                           std::move(coefficients),
+                          left, right, step,
                           ui_->decimalPlacesSpinBox->value())
                     : solver_.solve(std::move(coefficients));
 
@@ -303,7 +356,7 @@ namespace PolynomialSolver::UI
             lines << QString() << QStringLiteral("Корни:");
             if (solved.result.roots.empty())
             {
-                lines << QStringLiteral("Действительных корней нет.");
+                lines << QStringLiteral("В заданном диапазоне с выбранным шагом действительные корни не найдены.");
             }
 
             for (std::size_t index = 0; index < solved.result.roots.size(); ++index)

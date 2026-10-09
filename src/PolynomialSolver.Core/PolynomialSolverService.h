@@ -21,6 +21,9 @@ namespace PolynomialSolver::Core
 
         [[nodiscard]] SolvedPolynomial solveNumerically(
             std::vector<double> coefficients,
+            double left,
+            double right,
+            double step,
             int decimalPlaces = 6) const;
     };
 }

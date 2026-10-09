@@ -214,6 +214,92 @@ private slots:
         QCOMPARE(precision->value(), 3);
     }
 
+    void numericalRangeAndStepReachSolverAndSurviveClear()
+    {
+        MainWindow window;
+        auto* left = window.findChild<QLineEdit*>("leftBoundInput");
+        auto* right = window.findChild<QLineEdit*>("rightBoundInput");
+        auto* step = window.findChild<QLineEdit*>("scanStepInput");
+        QVERIFY(left != nullptr);
+        QVERIFY(right != nullptr);
+        QVERIFY(step != nullptr);
+        QVERIFY(left->isHidden());
+        window.findChild<QAbstractButton*>("degreeButton2")->click();
+        window.findChild<QComboBox*>("methodComboBox")->setCurrentIndex(1);
+        QVERIFY(!left->isHidden());
+        left->setText("0");
+        right->setText("1,5");
+        step->setText("0,25");
+        coefficient(window, 2)->setText("1");
+        coefficient(window, 1)->setText("-3");
+        coefficient(window, 0)->setText("2");
+        window.findChild<QPushButton*>("solveButton")->click();
+        const QString result = window.findChild<QPlainTextEdit*>("resultBox")->toPlainText();
+        QVERIFY(result.contains(QStringLiteral("x1 = 1.000000")));
+        QVERIFY(!result.contains(QStringLiteral("x2 =")));
+        QVERIFY(left->isHidden());
+        window.findChild<QPushButton*>("clearButton")->click();
+        QVERIFY(!left->isHidden());
+        QCOMPARE(right->text(), QStringLiteral("1,5"));
+        QCOMPARE(step->text(), QStringLiteral("0,25"));
+        right->setText("3");
+        step->setText("3");
+        coefficient(window, 2)->setText("1");
+        coefficient(window, 1)->setText("-3");
+        coefficient(window, 0)->setText("2");
+        window.findChild<QPushButton*>("solveButton")->click();
+        QVERIFY(!window.findChild<QPlainTextEdit*>("resultBox")->toPlainText().contains("x1 ="));
+    }
+
+    void returnInNumericalSettingsStartsSolving_data()
+    {
+        QTest::addColumn<QString>("field");
+        QTest::newRow("left") << QString("leftBoundInput");
+        QTest::newRow("right") << QString("rightBoundInput");
+        QTest::newRow("step") << QString("scanStepInput");
+    }
+
+    void returnInNumericalSettingsStartsSolving()
+    {
+        QFETCH(QString, field);
+        MainWindow window;
+        window.show();
+        window.findChild<QComboBox*>("methodComboBox")->setCurrentIndex(1);
+        auto* input = window.findChild<QLineEdit*>(field);
+        QVERIFY(input != nullptr);
+        coefficient(window, 1)->setText("1");
+        coefficient(window, 0)->setText("-2");
+        QTest::keyClick(input, Qt::Key_Return);
+        QVERIFY(window.findChild<QPlainTextEdit*>("resultBox")->toPlainText().contains("x1 = 2.000000"));
+    }
+
+    void invalidNumericalSettingsHighlightInput_data()
+    {
+        QTest::addColumn<QString>("field");
+        QTest::addColumn<QString>("value");
+        QTest::newRow("non-number") << QString("leftBoundInput") << QString("abc");
+        QTest::newRow("reversed-range") << QString("rightBoundInput") << QString("-20");
+        QTest::newRow("zero-step") << QString("scanStepInput") << QString("0");
+    }
+
+    void invalidNumericalSettingsHighlightInput()
+    {
+        QFETCH(QString, field);
+        QFETCH(QString, value);
+        MainWindow window;
+        window.findChild<QComboBox*>("methodComboBox")->setCurrentIndex(1);
+        auto* input = window.findChild<QLineEdit*>(field);
+        QVERIFY(input != nullptr);
+        input->setText(value);
+        window.findChild<QPushButton*>("solveButton")->click();
+        QVERIFY(input->property("invalid").toBool());
+        QVERIFY(!window.findChild<QLabel*>("inputErrorLabel")->text().isEmpty());
+        QVERIFY(!coefficient(window, 1)->isReadOnly());
+        input->setText(field == "scanStepInput" ? "0.25" : "10");
+        window.findChild<QPushButton*>("solveButton")->click();
+        QVERIFY(!input->property("invalid").toBool());
+    }
+
     void fifthDegreeAutomaticallyUsesBisection()
     {
         MainWindow window;
@@ -268,7 +354,7 @@ private slots:
             window.findChild<QPlainTextEdit*>("resultBox")->toPlainText();
 
         QVERIFY(result.contains(
-            QStringLiteral("Действительных корней нет.")));
+            QStringLiteral("действительные корни не найдены")));
     }
 
     void templateDoesNotAccumulateLeadingOnes()

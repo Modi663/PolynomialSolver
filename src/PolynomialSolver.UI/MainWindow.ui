@@ -202,6 +202,43 @@
         </layout>
        </item>
        <item>
+        <layout class="QHBoxLayout" name="numericalRangeLayout">
+         <item>
+          <widget class="QLabel" name="leftBoundInputLabel">
+           <property name="text"><string>Левая граница:</string></property>
+           <property name="buddy"><cstring>leftBoundInput</cstring></property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="leftBoundInput">
+           <property name="text"><string>-10</string></property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="rightBoundInputLabel">
+           <property name="text"><string>Правая граница:</string></property>
+           <property name="buddy"><cstring>rightBoundInput</cstring></property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="rightBoundInput">
+           <property name="text"><string>10</string></property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="scanStepInputLabel">
+           <property name="text"><string>Шаг:</string></property>
+           <property name="buddy"><cstring>scanStepInput</cstring></property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="scanStepInput">
+           <property name="text"><string>0.25</string></property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
         <layout class="QHBoxLayout" name="equationLayout">
          <property name="spacing">
           <number>8</number>

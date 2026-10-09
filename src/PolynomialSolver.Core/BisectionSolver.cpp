@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <limits>
 #include <numeric>
 #include <stdexcept>
 
@@ -10,24 +9,27 @@ namespace PolynomialSolver::Core
 {
     namespace
     {
-        double valueAt(const Polynomial& polynomial, double x)
+    double valueAt(const Polynomial& polynomial, double x)
+    {
+        const auto value = polynomial.evaluate({ x, 0.0 });
+
+        if (!std::isfinite(value.real())
+            || !std::isfinite(value.imag()))
         {
-            const auto value = polynomial.evaluate({ x, 0.0 });
-
-            if (!std::isfinite(value.real())
-                || !std::isfinite(value.imag()))
-            {
-                throw std::overflow_error(
-                    "Вычисление значения полинома "
-                    "вышло за пределы типа double.");
-            }
-
-            return value.real();
+            throw std::overflow_error(
+                "Вычисление значения полинома "
+                "вышло за пределы типа double.");
         }
+
+        return value.real();
+    }
     }
 
     SolveResult BisectionSolver::solve(
         const Polynomial& polynomial,
+        double left,
+        double right,
+        double step,
         int decimalPlaces)
     {
         if (polynomial.degree() < 1 || polynomial.degree() > 5)
@@ -43,11 +45,38 @@ namespace PolynomialSolver::Core
                 "должно быть от 0 до 15.");
         }
 
-        const double epsilon = 0.5 * std::pow(10.0, -decimalPlaces);
+        if (!std::isfinite(left)
+            || !std::isfinite(right)
+            || !std::isfinite(step))
+        {
+            throw std::invalid_argument(
+                "Границы диапазона и шаг должны быть конечными числами.");
+        }
+
+        if (left >= right)
+        {
+            throw std::invalid_argument(
+                "Левая граница должна быть меньше правой.");
+        }
+
+        if (step <= 0.0)
+        {
+            throw std::invalid_argument(
+                "Шаг должен быть больше нуля.");
+        }
+
+        const double epsilon =
+            0.5 * std::pow(10.0, -decimalPlaces);
 
         SolveResult result{ {}, SolutionMethod::Numerical };
 
-        for (double root : findRealRoots(polynomial, epsilon))
+        for (double root :
+             findRealRoots(
+                 polynomial,
+                 left,
+                 right,
+                 step,
+                 epsilon))
         {
             result.roots.emplace_back(root, 0.0);
         }
@@ -57,151 +86,75 @@ namespace PolynomialSolver::Core
 
     std::vector<double> BisectionSolver::findRealRoots(
         const Polynomial& polynomial,
+        double left,
+        double right,
+        double step,
         double epsilon)
     {
-        const auto& coefficients = polynomial.coefficients();
-        const int degree = polynomial.degree();
+        std::vector<double> roots;
 
-        if (degree == 1)
+        double x1 = left;
+        double y1 = valueAt(polynomial, x1);
+
+        while (x1 < right)
         {
-            const double root = -coefficients[1] / coefficients[0];
+            double x2 = x1 + step;
 
-            if (!std::isfinite(root))
+            if (!std::isfinite(x2))
             {
                 throw std::overflow_error(
-                    "Линейный корень вышел за пределы типа double.");
+                    "При вычислении следующей точки "
+                    "произошло переполнение.");
             }
 
-            if (epsilon > 0.0)
+            if (x2 > right)
             {
-                const double error = std::abs(
-                    std::fma(coefficients[0], root, coefficients[1])
-                    / coefficients[0]);
-
-                if (!std::isfinite(error) || error > epsilon)
-                {
-                    throw std::runtime_error(
-                        "Запрошенная точность линейного корня "
-                        "недостижима в типе double.");
-                }
+                x2 = right;
             }
 
-            return { root };
-        }
-
-        std::vector<double> derivativeCoefficients;
-
-        for (int index = 0; index < degree; ++index)
-        {
-            derivativeCoefficients.push_back(
-                coefficients[index] * (degree - index));
-        }
-
-        const Polynomial derivative(derivativeCoefficients);
-
-        double maximumRatio = 0.0;
-
-        for (std::size_t index = 1;
-             index < coefficients.size(); ++index)
-        {
-            maximumRatio = std::max(
-                maximumRatio,
-                std::abs(coefficients[index] / coefficients.front()));
-        }
-
-        const double radius = std::nextafter(
-            1.0 + maximumRatio,
-            std::numeric_limits<double>::infinity());
-
-        if (!std::isfinite(radius))
-        {
-            throw std::overflow_error(
-                "Границы поиска вышли за пределы типа double.");
-        }
-
-        std::vector<double> points{ -radius };
-
-        // Производную уточняем до предела арифметики,
-        // независимо от количества знаков в результате.
-        for (double point : findRealRoots(derivative, 0.0))
-        {
-            if (point > -radius && point < radius)
-            {
-                points.push_back(point);
-            }
-        }
-
-        points.push_back(radius);
-
-        std::vector<double> roots;
-        std::vector<double> values;
-
-        for (std::size_t index = 0; index < points.size(); ++index)
-        {
-            if (index > 0 && points[index] <= points[index - 1])
+            if (x2 == x1)
             {
                 throw std::runtime_error(
-                    "Не удалось разделить близкие критические точки.");
+                    "Шаг слишком мал для данного диапазона.");
             }
 
-            const double value = valueAt(polynomial, points[index]);
-            values.push_back(value);
+            const double y2 = valueAt(polynomial, x2);
 
-            if (value == 0.0)
+            // Если текущая точка сама является корнем.
+            if (y1 == 0.0)
             {
-                roots.push_back(points[index]);
+                roots.push_back(x1);
             }
-            else if (index > 0 && index + 1 < points.size())
+
+            // Если функция поменяла знак,
+            // значит внутри интервала существует корень.
+            if (y1 != 0.0
+                && y2 != 0.0
+                && std::signbit(y1) != std::signbit(y2))
             {
-                double scale = 0.0;
-
-                for (double coefficient : coefficients)
-                {
-                    scale = std::fma(
-                        scale,
-                        std::abs(points[index]),
-                        std::abs(coefficient));
-                }
-
-                if (!std::isfinite(scale))
-                {
-                    throw std::overflow_error(
-                        "Оценка ошибки вычисления вышла "
-                        "за пределы типа double.");
-                }
-
-                const double roundingError =
-                    8.0 * static_cast<double>(coefficients.size())
-                    * std::numeric_limits<double>::epsilon()
-                    * scale;
-
-                // Пользовательский допуск не определяет,
-                // существует ли корень в критической точке.
-                if (std::abs(value) <= roundingError)
-                {
-                    throw std::runtime_error(
-                        "Около критической точки нельзя надёжно "
-                        "отличить кратный корень от близких корней "
-                        "или отсутствия корня в типе double.");
-                }
+                roots.push_back(
+                    bisect(
+                        polynomial,
+                        x1,
+                        x2,
+                        epsilon));
             }
+
+            x1 = x2;
+            y1 = y2;
         }
 
-        for (std::size_t index = 0; index + 1 < points.size(); ++index)
+        // Проверяем правую границу диапазона.
+        if (y1 == 0.0)
         {
-            if (values[index] != 0.0 && values[index + 1] != 0.0
-                && std::signbit(values[index])
-                       != std::signbit(values[index + 1]))
-            {
-                roots.push_back(bisect(
-                    polynomial,
-                    points[index],
-                    points[index + 1],
-                    epsilon));
-            }
+            roots.push_back(right);
         }
 
         std::sort(roots.begin(), roots.end());
+
+        // Точность уточнения не должна объединять различные корни.
+        roots.erase(std::unique(roots.begin(), roots.end()), roots.end());
+
         return roots;
     }
 
@@ -232,29 +185,30 @@ namespace PolynomialSolver::Core
 
         for (int iteration = 0; iteration < 4096; ++iteration)
         {
-            const double middle = std::midpoint(left, right);
-            const double value = valueAt(polynomial, middle);
-            const double halfWidth = right / 2.0 - left / 2.0;
+            const double middle =
+                std::midpoint(left, right);
+
+            const double value =
+                valueAt(polynomial, middle);
+
+            const double halfWidth =
+                right / 2.0 - left / 2.0;
 
             if (value == 0.0
-                || (epsilon > 0.0 && halfWidth <= epsilon))
+                || halfWidth <= epsilon)
             {
                 return middle;
             }
 
             if (middle == left || middle == right)
             {
-                if (epsilon == 0.0)
-                {
-                    return middle;
-                }
-
                 throw std::runtime_error(
                     "Запрошенная точность корня "
                     "недостижима в типе double.");
             }
 
-            if (std::signbit(leftValue) != std::signbit(value))
+            if (std::signbit(leftValue)
+                != std::signbit(value))
             {
                 right = middle;
             }
