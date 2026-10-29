@@ -208,6 +208,11 @@ namespace PolynomialSolver::UI
 
     void PolynomialChartView::paintEvent(QPaintEvent* event)
     {
+        // The native paint path updates Qt's per-viewport scene bookkeeping.
+        // QGraphicsView::render alone leaves subsequent scene changes unpainted.
+        QChartView::paintEvent(event);
+        if (animation_->state() == QAbstractAnimation::Running || dragging_) return;
+
         const QSize viewSize = viewport()->size();
         if (viewSize.isEmpty()) return;
 
@@ -221,7 +226,6 @@ namespace PolynomialSolver::UI
             static_cast<int>(std::ceil(viewSize.height() * scale))), QImage::Format_ARGB32_Premultiplied);
         if (buffer.isNull())
         {
-            QChartView::paintEvent(event);
             return;
         }
         buffer.fill(palette().color(QPalette::Base));
@@ -330,6 +334,7 @@ namespace PolynomialSolver::UI
         {
             dragging_ = false;
             unsetCursor();
+            viewport()->update();
             event->accept();
             return;
         }
@@ -350,12 +355,17 @@ namespace PolynomialSolver::UI
 
     void PolynomialChartView::applyViewport()
     {
-        xAxis_->setRange(visibleViewport_.x.minimum, visibleViewport_.x.maximum);
-        yAxis_->setRange(visibleViewport_.y.minimum, visibleViewport_.y.maximum);
-        xAxis_->setTickInterval(PlotDataBuilder::gridStep(
-            visibleViewport_.x, std::max(1, width())));
-        yAxis_->setTickInterval(PlotDataBuilder::gridStep(
-            visibleViewport_.y, std::max(1, height())));
+        const auto updateAxis = [](QValueAxis* axis, const AxisRange range, const int pixelLength)
+        {
+            const double interval = PlotDataBuilder::gridStep(range, pixelLength);
+            // Qt lays out dynamic ticks synchronously for both setters. Keep
+            // the old and new ranges sparse throughout expansion or shrinkage.
+            axis->setTickInterval(std::max(axis->tickInterval(), interval));
+            axis->setRange(range.minimum, range.maximum);
+            axis->setTickInterval(interval);
+        };
+        updateAxis(xAxis_, visibleViewport_.x, std::max(1, width()));
+        updateAxis(yAxis_, visibleViewport_.y, std::max(1, height()));
         updateZeroAxes();
     }
 

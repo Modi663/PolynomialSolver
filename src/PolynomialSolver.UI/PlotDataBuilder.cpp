@@ -225,9 +225,14 @@ namespace PolynomialSolver::UI
             return 1.0;
         }
 
-        const double desired = 65.0 * range.span() /
-            static_cast<double>(pixelLength);
-        const double base = std::pow(10.0, std::floor(std::log10(desired)));
+        // Divide by the tick budget before rounding, avoiding overflow from
+        // multiplying a large finite span or underflow at subnormal scales.
+        constexpr double smallest = std::numeric_limits<double>::denorm_min();
+        constexpr double largest = std::numeric_limits<double>::max();
+        const double desired = std::clamp(
+            range.span() / (static_cast<double>(pixelLength) / 65.0), smallest, largest);
+        const double base = std::max(smallest,
+            std::pow(10.0, std::floor(std::log10(desired))));
         const double ratio = desired / base;
 
         if (ratio <= 1.0)
@@ -237,14 +242,14 @@ namespace PolynomialSolver::UI
 
         if (ratio <= 2.0)
         {
-            return 2.0 * base;
+            return std::min(2.0 * base, largest);
         }
 
         if (ratio <= 5.0)
         {
-            return 5.0 * base;
+            return std::min(5.0 * base, largest);
         }
 
-        return 10.0 * base;
+        return std::min(10.0 * base, largest);
     }
 }

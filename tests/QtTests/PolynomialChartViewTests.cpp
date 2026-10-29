@@ -6,14 +6,112 @@
 #include <QtTest/QTest>
 
 #include <cmath>
+#include <limits>
 
 using PolynomialSolver::UI::PolynomialChartView;
+
+class PaintCounter final : public QObject
+{
+public:
+    int count{};
+    bool eventFilter(QObject* watched, QEvent* event) override
+    {
+        if (event->type() == QEvent::Paint) ++count;
+        return QObject::eventFilter(watched, event);
+    }
+};
 
 class PolynomialChartViewTests final : public QObject
 {
     Q_OBJECT
 
 private slots:
+    void removesOldCurveWhenNewPolynomialOverflowsAllSamples()
+    {
+        PolynomialChartView view;
+        view.setPolynomial({1, 0}, {});
+        QVERIFY(view.curvePointCount() > 0);
+        const double maximum = std::numeric_limits<double>::max();
+        view.setPolynomial({maximum, 0, maximum}, {});
+        QCOMPARE(view.curvePointCount(), 0);
+        QCOMPARE(view.rootMarkerCount(), 0);
+    }
+
+    void consecutiveValidEditsRepaintWithoutForcedGrab()
+    {
+        PolynomialChartView view;
+        PaintCounter paints;
+        view.QChartView::viewport()->installEventFilter(&paints);
+        view.resize(720, 420);
+        view.show();
+        view.setPolynomial({1, 0}, {});
+        QTest::qWait(40);
+        const int beforeFirst = paints.count;
+        view.updatePolynomial({2, -3});
+        QTest::qWait(350);
+        QVERIFY2(paints.count >= beforeFirst + 3, "The first valid edit must repaint animation frames automatically");
+        const int beforeSecond = paints.count;
+        view.updatePolynomial({3, 4});
+        QTest::qWait(350);
+        QVERIFY2(paints.count >= beforeSecond + 3, "The second valid edit must repaint without an invalid intermediate input");
+    }
+
+    void rangeChangesNeverCreateAnExcessiveNumberOfTicks()
+    {
+        PolynomialChartView view;
+        view.resize(720, 420);
+        view.setPolynomial({1, 0}, {});
+        auto* axis = qobject_cast<QValueAxis*>(view.chart()->axes(Qt::Vertical).front());
+        QVERIFY(axis);
+        bool denseIntermediateState = false;
+        const auto checkTickDensity = [&]
+        {
+            if (axis->tickType() == QValueAxis::TicksDynamic)
+                denseIntermediateState |= (axis->max() - axis->min()) / axis->tickInterval() > 30;
+        };
+        connect(axis, &QValueAxis::rangeChanged, &view, checkTickDensity);
+        connect(axis, &QValueAxis::tickIntervalChanged, &view, checkTickDensity);
+        view.setPolynomial({20, 0}, {});
+        view.setPolynomial({1, 0}, {});
+        QVERIFY2(!denseIntermediateState, "Axis range and tick interval must remain consistent throughout the update");
+    }
+
+    void fitsReportedQuinticRootWithoutDenseTicksOrStalePainting()
+    {
+        PolynomialChartView view;
+        PaintCounter paints;
+        view.QChartView::viewport()->installEventFilter(&paints);
+        view.resize(720, 420);
+        view.show();
+        const std::vector<double> coefficients{1, 54, 23, 3, 4, 5};
+        view.setPolynomial(coefficients, {});
+        QTest::qWait(30);
+        const int beforeFit = paints.count;
+
+        auto* axis = qobject_cast<QValueAxis*>(view.chart()->axes(Qt::Vertical).front());
+        QVERIFY(axis);
+        bool denseIntermediateState = false;
+        const auto checkTickDensity = [&]
+        {
+            denseIntermediateState |= (axis->max() - axis->min()) / axis->tickInterval() > 30;
+        };
+        connect(axis, &QValueAxis::rangeChanged, &view, checkTickDensity);
+        connect(axis, &QValueAxis::tickIntervalChanged, &view, checkTickDensity);
+
+        // The numerical solution for [-100, 100], step 0.25, lies in (-54, -53).
+        // Supplying it changes the fitted vertical range by several orders.
+        view.setPolynomial(coefficients, {{-53.5716886645332, 0.0}});
+        QVERIFY(!denseIntermediateState);
+        QCOMPARE(view.rootMarkerCount(), 1);
+        QVERIFY(view.curvePointCount() >= 800);
+        QVERIFY(view.visibleViewport().x.minimum < -54.0);
+        QVERIFY(view.visibleViewport().x.maximum > -53.0);
+        QTRY_VERIFY(paints.count > beforeFit);
+
+        view.setPolynomial({1, 0}, {});
+        QVERIFY(!denseIntermediateState);
+    }
+
     void rendersDenseCurveWithSmoothEdges()
     {
         PolynomialChartView view;

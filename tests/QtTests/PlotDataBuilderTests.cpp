@@ -3,6 +3,7 @@
 #include <QtTest/QTest>
 
 #include <cmath>
+#include <limits>
 
 using PolynomialSolver::UI::PlotDataBuilder;
 
@@ -80,6 +81,33 @@ private slots:
         QCOMPARE(PlotDataBuilder::gridStep({-5.0, 5.0}, 650), 1.0);
         QCOMPARE(PlotDataBuilder::gridStep({0.0, 25.0}, 650), 5.0);
         QCOMPARE(PlotDataBuilder::gridStep({0.0, 100.0}, 650), 10.0);
+    }
+
+    void keepsGridStepFiniteAndPositiveForExtremeRanges_data()
+    {
+        QTest::addColumn<double>("minimum");
+        QTest::addColumn<double>("maximum");
+        QTest::addColumn<int>("pixels");
+        const double maximum = std::numeric_limits<double>::max();
+        const double smallest = std::numeric_limits<double>::denorm_min();
+        QTest::newRow("wide") << -1e307 << 1e307 << 650;
+        QTest::newRow("maximum") << 0.0 << maximum << 650;
+        QTest::newRow("maximum-tiny-view") << 0.0 << maximum << 1;
+        QTest::newRow("smallest") << 0.0 << smallest << 650;
+        QTest::newRow("subnormal") << 0.0 << 100 * smallest << 650;
+        QTest::newRow("subnormal-tiny-view") << 0.0 << 100 * smallest << 1;
+    }
+
+    void keepsGridStepFiniteAndPositiveForExtremeRanges()
+    {
+        QFETCH(double, minimum);
+        QFETCH(double, maximum);
+        QFETCH(int, pixels);
+        const PolynomialSolver::UI::AxisRange range{minimum, maximum};
+        const double step = PlotDataBuilder::gridStep(range, pixels);
+        QVERIFY(std::isfinite(step));
+        QVERIFY(step > 0.0);
+        QVERIFY(range.span() / step <= 30.0);
     }
 
     void keepsFitRangesFiniteForExtremeCoefficients()
