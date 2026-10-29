@@ -35,6 +35,7 @@ namespace PolynomialSolver::UI
         [[nodiscard]] int zeroAxisSeriesCount() const noexcept;
 
     protected:
+        void paintEvent(QPaintEvent* event) override;
         void wheelEvent(QWheelEvent* event) override;
         void mousePressEvent(QMouseEvent* event) override;
         void mouseMoveEvent(QMouseEvent* event) override;

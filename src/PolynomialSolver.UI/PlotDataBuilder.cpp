@@ -178,7 +178,7 @@ namespace PolynomialSolver::UI
         const AxisRange xRange,
         const int viewportWidth)
     {
-        const int pointCount = std::clamp(viewportWidth, 400, 2000);
+        const int pointCount = std::clamp(viewportWidth, 400, 8000) * 2;
         PlotSegments segments;
         QVector<QPointF> current;
         current.reserve(pointCount);

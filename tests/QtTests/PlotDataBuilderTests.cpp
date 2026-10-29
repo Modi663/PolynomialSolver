@@ -54,9 +54,9 @@ private slots:
         const auto wide = PlotDataBuilder::sample({1.0, 0.0}, {-1.0, 1.0}, 3000);
 
         QCOMPARE(narrow.size(), std::size_t{1});
-        QCOMPARE(narrow.front().size(), 400);
+        QCOMPARE(narrow.front().size(), 800);
         QCOMPARE(wide.size(), std::size_t{1});
-        QCOMPARE(wide.front().size(), 2000);
+        QCOMPARE(wide.front().size(), 6000);
     }
 
     void omitsNonFiniteSamples()
@@ -67,7 +67,7 @@ private slots:
             400);
 
         QCOMPARE(segments.size(), std::size_t{1});
-        QVERIFY(segments.front().size() < 400);
+        QVERIFY(segments.front().size() < 800);
 
         for (const QPointF& point : segments.front())
         {

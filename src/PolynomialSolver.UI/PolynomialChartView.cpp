@@ -8,6 +8,7 @@
 
 #include <QMouseEvent>
 #include <QPainter>
+#include <QImage>
 #include <QResizeEvent>
 #include <QWheelEvent>
 #include <QVariantAnimation>
@@ -22,7 +23,8 @@ namespace PolynomialSolver::UI
           chart_(chart())
     {
         setMinimumSize(320, 240);
-        setRenderHint(QPainter::Antialiasing);
+        setRenderHints(QPainter::Antialiasing | QPainter::TextAntialiasing | QPainter::SmoothPixmapTransform);
+        setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
         setRubberBand(QChartView::NoRubberBand);
         setMouseTracking(true);
 
@@ -204,6 +206,36 @@ namespace PolynomialSolver::UI
             (!verticalZeroSeries_->points().empty() ? 1 : 0);
     }
 
+    void PolynomialChartView::paintEvent(QPaintEvent* event)
+    {
+        const QSize viewSize = viewport()->size();
+        if (viewSize.isEmpty()) return;
+
+        // Render above the display resolution, then filter down. Bound the
+        // extra pixels so animation remains usable on large/high-DPI screens.
+        const double pixels = static_cast<double>(viewSize.width()) * viewSize.height();
+        const double displayScale = devicePixelRatioF();
+        const double scale = std::max(displayScale,
+            std::min(displayScale * 2, std::sqrt(8'000'000.0 / pixels)));
+        QImage buffer(QSize(static_cast<int>(std::ceil(viewSize.width() * scale)),
+            static_cast<int>(std::ceil(viewSize.height() * scale))), QImage::Format_ARGB32_Premultiplied);
+        if (buffer.isNull())
+        {
+            QChartView::paintEvent(event);
+            return;
+        }
+        buffer.fill(palette().color(QPalette::Base));
+        QPainter highResolutionPainter(&buffer);
+        highResolutionPainter.setRenderHints(renderHints());
+        QGraphicsView::render(&highResolutionPainter, QRectF(QPointF(0, 0), QSizeF(buffer.size())),
+            viewport()->rect(), Qt::IgnoreAspectRatio);
+        highResolutionPainter.end();
+
+        QPainter painter(viewport());
+        painter.setRenderHint(QPainter::SmoothPixmapTransform);
+        painter.drawImage(viewport()->rect(), buffer);
+    }
+
     void PolynomialChartView::wheelEvent(QWheelEvent* event)
     {
         if (coefficients_.empty() || event->angleDelta().y() == 0)
@@ -335,7 +367,8 @@ namespace PolynomialSolver::UI
         }
 
         const PlotSegments segments = PlotDataBuilder::sample(
-            renderedCoefficients_, visibleViewport_.x, std::max(1, width()));
+            renderedCoefficients_, visibleViewport_.x,
+            std::max(1, qRound(viewport()->width() * devicePixelRatioF())));
 
         while (curveSeries_.size() > static_cast<std::size_t>(segments.size()))
         {

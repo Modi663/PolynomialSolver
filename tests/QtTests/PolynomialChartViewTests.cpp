@@ -14,6 +14,28 @@ class PolynomialChartViewTests final : public QObject
     Q_OBJECT
 
 private slots:
+    void rendersDenseCurveWithSmoothEdges()
+    {
+        PolynomialChartView view;
+        view.resize(720, 420);
+        view.show();
+        view.setPolynomial({1, 0, 0, 0}, {});
+        QTest::qWait(30);
+        QVERIFY(view.curvePointCount() >= view.QChartView::viewport()->width() * 2);
+        const QImage image = view.QChartView::viewport()->grab().toImage();
+        QVERIFY(!image.isNull());
+        bool blendedEdge = false;
+        for (int y = 0; y < image.height() && !blendedEdge; ++y)
+            for (int x = 0; x < image.width() && !blendedEdge; ++x)
+            {
+                const auto color = image.pixelColor(x, y);
+                blendedEdge = color.blue() > color.red() + 20
+                    && color.blue() > color.green() + 15
+                    && color.red() > 60 && color.red() < 225;
+            }
+        QVERIFY(blendedEdge);
+    }
+
     void clickDuringAnimationDisplaysLatestPolynomial()
     {
         PolynomialChartView view;
@@ -80,8 +102,8 @@ private slots:
 
         QVERIFY(qobject_cast<QChartView*>(&view) != nullptr);
         QVERIFY(view.hasPolynomial());
-        QVERIFY(view.curvePointCount() >= 400);
-        QVERIFY(view.curvePointCount() <= 2000);
+        const auto physicalWidth = qRound(view.QChartView::viewport()->width() * view.devicePixelRatioF());
+        QCOMPARE(view.curvePointCount(), qsizetype(std::clamp(physicalWidth, 400, 8000) * 2));
         QCOMPARE(view.rootMarkerCount(), 2);
         QCOMPARE(view.zeroAxisSeriesCount(), 2);
     }
