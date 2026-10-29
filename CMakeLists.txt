@@ -11,7 +11,7 @@ set(CMAKE_AUTORCC ON)
 
 include(CTest)
 
-find_package(Qt6 6.11 REQUIRED COMPONENTS Charts Test Widgets)
+find_package(Qt6 6.11 REQUIRED COMPONENTS Charts Concurrent Test Widgets)
 
 add_subdirectory(src/PolynomialSolver.Core)
 add_subdirectory(src/PolynomialSolver.UI)

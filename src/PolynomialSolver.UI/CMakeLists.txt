@@ -1,4 +1,8 @@
 add_library(PolynomialSolver.UI STATIC
+    SolveController.cpp
+    SolveController.h
+    SolveReportFormatter.cpp
+    SolveReportFormatter.h
     BisectionSettingsDialog.cpp
     BisectionSettingsDialog.h
     InputValidation.h
@@ -25,6 +29,7 @@ target_link_libraries(PolynomialSolver.UI
     PUBLIC
         PolynomialSolver.Core
         Qt6::Charts
+        Qt6::Concurrent
         Qt6::Core
         Qt6::Widgets
 )

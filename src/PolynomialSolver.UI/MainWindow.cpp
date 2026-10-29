@@ -5,6 +5,7 @@
 #include "InputValidation.h"
 #include "PolynomialChartView.h"
 #include "UiIcons.h"
+#include "SolveReportFormatter.h"
 #include "ui_MainWindow.h"
 
 #include <QButtonGroup>
@@ -20,49 +21,16 @@
 #include <QStyle>
 #include <QTextCursor>
 
-#include <cmath>
-
-namespace
-{
-    QString powerText(int power)
-    {
-        switch (power)
-        {
-        case 1: return QStringLiteral("x");
-        case 2: return QStringLiteral("x²");
-        case 3: return QStringLiteral("x³");
-        case 4: return QStringLiteral("x⁴");
-        case 5: return QStringLiteral("x⁵");
-        default: return {};
-        }
-    }
-    QString formatNumber(double value)
-    {
-        if (std::abs(value) < 1e-12) value = 0;
-        return QString::number(value, 'g', 10);
-    }
-    QString formatRoot(const std::complex<double>& root)
-    {
-        const double real = std::abs(root.real()) < 1e-12 ? 0 : root.real();
-        const double imaginary = std::abs(root.imag()) < 1e-12 ? 0 : root.imag();
-        if (imaginary == 0) return formatNumber(real);
-        if (real == 0) return QStringLiteral("%1i").arg(formatNumber(imaginary));
-        return QStringLiteral("%1 %2 %3i").arg(formatNumber(real),
-            imaginary >= 0 ? QStringLiteral("+") : QStringLiteral("-"), formatNumber(std::abs(imaginary)));
-    }
-    QString formatNumericalRoot(double value, int places)
-    {
-        if (std::abs(value) < 0.5 * std::pow(10.0, -places)) value = 0;
-        return QString::number(value, 'f', places);
-    }
-}
+#include <QProgressBar>
 
 namespace PolynomialSolver::UI
 {
-    MainWindow::MainWindow(QWidget* parent)
+    MainWindow::MainWindow(QWidget* parent, SolveController::Operation operation)
         : QMainWindow(parent), ui_(std::make_unique<::Ui::MainWindow>())
     {
         buildInterface();
+        controller_ = new SolveController(this, std::move(operation));
+        connectController();
         rebuildEquationInputs(false);
         updateSolverControls();
         refreshPreview();
@@ -72,6 +40,11 @@ namespace PolynomialSolver::UI
     void MainWindow::buildInterface()
     {
         ui_->setupUi(this);
+        ui_->methodComboBox->setItemData(0, int(Core::SolveMode::Analytical));
+        ui_->methodComboBox->setItemData(1, int(Core::SolveMode::Bisection));
+        ui_->methodComboBox->setItemData(2, int(Core::SolveMode::Compare));
+        ui_->loadingIndicator->hide();
+        ui_->loadingLabel->hide();
         setWindowIcon(applicationIcon());
         ui_->settingsButton->setIcon(settingsIcon(palette().color(QPalette::ButtonText)));
         ui_->settingsButton->setIconSize(QSize(20, 20));
@@ -141,7 +114,7 @@ namespace PolynomialSolver::UI
             connect(input, &QLineEdit::returnPressed, this, &MainWindow::solve);
             coefficientInputs_.push_back(input);
             ui_->equationLayout->addWidget(input);
-            auto* term = new QLabel(power == 0 ? QStringLiteral(" = 0") : powerText(power) + QStringLiteral(" + "));
+            auto* term = new QLabel(power == 0 ? QStringLiteral(" = 0") : SolveReportFormatter::powerText(power) + QStringLiteral(" + "));
             term->setFont(formulaFont);
             term->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
             ui_->equationLayout->addWidget(term);
@@ -150,10 +123,11 @@ namespace PolynomialSolver::UI
 
     void MainWindow::updateSolverControls()
     {
-        if (selectedDegree_ > 3) ui_->methodComboBox->setCurrentIndex(1);
+        if (selectedDegree_ > 3)
+            ui_->methodComboBox->setCurrentIndex(ui_->methodComboBox->findData(int(Core::SolveMode::Bisection)));
         ui_->methodComboBox->setEnabled(selectedDegree_ <= 3);
-        const bool numerical = ui_->methodComboBox->currentIndex() != 0;
-        ui_->settingsButton->setEnabled(numerical);
+        const bool numerical = currentMode() != Core::SolveMode::Analytical;
+        ui_->settingsButton->setVisible(numerical);
         ui_->bisectionSummary->setVisible(numerical);
         const auto settings = settingsDialog_->settings();
         ui_->bisectionSummary->setText(settings
@@ -166,6 +140,22 @@ namespace PolynomialSolver::UI
     {
         settingsDialog_->beginEditing();
         settingsDialog_->open();
+    }
+
+    void MainWindow::connectController()
+    {
+        connect(controller_, &SolveController::busyChanged, this,
+            [this](bool busy) { ui_->solveButton->setEnabled(!busy); });
+        connect(controller_, &SolveController::loadingChanged, this, [this](bool loading)
+        {
+            ui_->loadingIndicator->setVisible(loading);
+            ui_->loadingLabel->setVisible(loading);
+        });
+        connect(controller_, &SolveController::completed, this, &MainWindow::showReport);
+        connect(controller_, &SolveController::failed, this, [this](const QString& error)
+        {
+            QMessageBox::warning(this, QStringLiteral("Ошибка решения"), error);
+        });
     }
 
     std::optional<std::vector<double>> MainWindow::readCoefficients()
@@ -181,7 +171,7 @@ namespace PolynomialSolver::UI
             if (!value)
                 errors << QStringLiteral("Коэффициент при %1: введите конечное число.").arg(
                     index + 1 == coefficientInputs_.size() ? QStringLiteral("x⁰")
-                        : powerText(selectedDegree_ - static_cast<int>(index)));
+                        : SolveReportFormatter::powerText(selectedDegree_ - static_cast<int>(index)));
             else if (invalid) errors << QStringLiteral("Старший коэффициент не может быть нулём.");
             coefficients.push_back(value.value_or(0));
         }
@@ -198,21 +188,6 @@ namespace PolynomialSolver::UI
         if (coefficients) ui_->chartView->updatePolynomial(*coefficients);
         else ui_->chartView->clearGraph();
         ui_->resetViewButton->setEnabled(coefficients.has_value());
-    }
-
-    QString MainWindow::equationText() const
-    {
-        QString equation;
-        for (std::size_t index = 0; index < coefficientInputs_.size(); ++index)
-        {
-            QString value = coefficientInputs_[index]->text().trimmed();
-            const bool negative = value.startsWith('-');
-            if (negative || value.startsWith('+')) value.remove(0, 1);
-            if (index > 0) equation += negative ? QStringLiteral(" − ") : QStringLiteral(" + ");
-            else if (negative) equation += '-';
-            equation += value + powerText(selectedDegree_ - static_cast<int>(index));
-        }
-        return equation + QStringLiteral(" = 0");
     }
 
     void MainWindow::appendResult(const QStringList& lines)
@@ -241,75 +216,55 @@ namespace PolynomialSolver::UI
         ui_->clearButton->setEnabled(true);
     }
 
+    Core::SolveMode MainWindow::currentMode() const
+    {
+        return static_cast<Core::SolveMode>(ui_->methodComboBox->currentData().toInt());
+    }
+
+    bool MainWindow::matchesCurrentEquation(const std::vector<double>& coefficients) const
+    {
+        if (coefficients.size() != coefficientInputs_.size()) return false;
+        for (std::size_t index = 0; index < coefficients.size(); ++index)
+        {
+            const auto value = CoefficientParser::parse(coefficientInputs_[index]->text(), QLocale::system());
+            if (!value || *value != coefficients[index]) return false;
+        }
+        return true;
+    }
+
     void MainWindow::solve()
     {
+        if (controller_->isBusy()) return;
         const auto coefficients = readCoefficients();
         if (!coefficients)
         {
             QMessageBox::warning(this, QStringLiteral("Ошибка ввода"), ui_->inputErrorLabel->text());
             return;
         }
-        const int method = ui_->methodComboBox->currentIndex();
         const auto settings = settingsDialog_->settings();
-        if (method != 0 && !settings)
+        if (currentMode() != Core::SolveMode::Analytical && !settings)
         {
             openBisectionSettings();
-            settingsDialog_->validateInputs();
             return;
         }
-        QStringList lines{QStringLiteral("Расчёт №%1").arg(++calculationCount_), equationText()};
-        if (method == 2)
-            lines << QStringLiteral("Сравнение: аналитический метод — все корни, включая комплексные; "
-                "бисекция — действительные корни в заданном интервале.");
-        QStringList failures;
-        std::vector<std::complex<double>> markers;
-        const auto run = [&](bool numerical)
+        static_cast<void>(controller_->start({*coefficients, currentMode(), settings}));
+    }
+
+    void MainWindow::showReport(const Core::SolveReport& report)
+    {
+        appendResult(SolveReportFormatter::format(report, ++calculationCount_));
+        const bool current = matchesCurrentEquation(report.request.coefficients);
+        if (current) ui_->chartView->setPolynomial(report.request.coefficients, report.roots());
+        const QString failures = SolveReportFormatter::errors(report);
+        if (failures.isEmpty()) return;
+        if (current)
         {
-            lines << QString() << (numerical ? QStringLiteral("Метод: бисекция") : QStringLiteral("Метод: аналитический"));
-            if (numerical)
-            {
-                lines << QStringLiteral("Интервал: [%1; %2]; знаков после запятой: %3; %4")
-                    .arg(QString::number(settings->left, 'g', 17), QString::number(settings->right, 'g', 17))
-                    .arg(settings->decimalPlaces).arg(settings->findAll
-                        ? QStringLiteral("все корни; шаг %1").arg(QString::number(settings->step, 'g', 17))
-                        : QStringLiteral("один корень, без сканирования"));
-            }
-            try
-            {
-                const auto solved = numerical
-                    ? (settings->findAll
-                        ? solver_.solveNumerically(*coefficients, settings->left, settings->right, settings->step, settings->decimalPlaces)
-                        : solver_.solveOneNumerically(*coefficients, settings->left, settings->right, settings->decimalPlaces))
-                    : solver_.solve(*coefficients);
-                if (solved.result.roots.empty())
-                    lines << QStringLiteral("В заданном интервале с выбранным шагом действительные корни не найдены.");
-                for (std::size_t index = 0; index < solved.result.roots.size(); ++index)
-                {
-                    lines << QStringLiteral("x%1 = %2").arg(index + 1).arg(numerical
-                        ? formatNumericalRoot(solved.result.roots[index].real(), settings->decimalPlaces)
-                        : formatRoot(solved.result.roots[index]));
-                    lines << QStringLiteral("    |P(x)| = %1").arg(QString::number(solved.residuals[index], 'E', 3));
-                }
-                markers.insert(markers.end(), solved.result.roots.begin(), solved.result.roots.end());
-            }
-            catch (const std::exception& exception)
-            {
-                const QString error = QString::fromUtf8(exception.what());
-                lines << QStringLiteral("Ошибка: %1").arg(error);
-                failures << (numerical ? QStringLiteral("Бисекция: ") : QStringLiteral("Аналитический метод: ")) + error;
-            }
-        };
-        if (method != 1) run(false);
-        if (method != 0) run(true);
-        appendResult(lines);
-        ui_->chartView->setPolynomial(*coefficients, markers);
-        if (!failures.isEmpty())
-        {
-            ui_->inputErrorLabel->setText(failures.join('\n'));
+            ui_->inputErrorLabel->setText(failures);
             ui_->inputErrorLabel->show();
             ui_->inputErrorIcon->show();
-            QMessageBox::warning(this, QStringLiteral("Ошибка решения"), failures.join('\n'));
         }
+        QMessageBox::warning(this, QStringLiteral("Ошибка решения"),
+            SolveReportFormatter::equation(report.request.coefficients) + QStringLiteral("\n\n") + failures);
     }
 
     void MainWindow::clear()

@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 #include "BisectionSettingsDialog.h"
 #include "PolynomialChartView.h"
+#include "SolveController.h"
 
 #include <QAbstractButton>
 #include <QApplication>
@@ -13,10 +14,14 @@
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QProgressBar>
+#include <QSemaphore>
 #include <QRadioButton>
 #include <QSplitter>
 #include <QTimer>
 #include <QtTest/QTest>
+#include <memory>
+#include <stdexcept>
 
 using PolynomialSolver::UI::MainWindow;
 using PolynomialSolver::UI::BisectionSettingsDialog;
@@ -39,9 +44,25 @@ private:
         const QString text = history(window)->toPlainText();
         return text.mid(text.lastIndexOf(QStringLiteral("Расчёт №")));
     }
-    static void clickSolve(MainWindow& window)
+    static void clickSolve(MainWindow& window, bool* messageSeen = nullptr)
     {
+        QTimer closer;
+        if (messageSeen)
+        {
+            connect(&closer, &QTimer::timeout, &window, [messageSeen]
+            {
+                for (auto* widget : QApplication::topLevelWidgets())
+                    if (auto* box = qobject_cast<QMessageBox*>(widget))
+                    {
+                        *messageSeen = true;
+                        box->accept();
+                    }
+            });
+            closer.start(5);
+        }
         window.findChild<QPushButton*>("solveButton")->click();
+        auto* controller = window.findChild<PolynomialSolver::UI::SolveController*>();
+        if (controller) QTRY_VERIFY(!controller->isBusy());
     }
     static void configure(MainWindow& window, QString left, QString right, bool all = false, QString step = "0.25")
     {
@@ -56,19 +77,60 @@ private:
         dialog->findChild<QDialogButtonBox*>()->button(QDialogButtonBox::Apply)->click();
         QVERIFY(!dialog->isVisible());
     }
-    static void closeNextMessage(bool* seen = nullptr)
-    {
-        QTimer::singleShot(0, [seen]
-        {
-            for (QWidget* widget : QApplication::topLevelWidgets())
-                if (auto* box = qobject_cast<QMessageBox*>(widget))
-                {
-                    if (seen) *seen = true;
-                    box->accept();
-                }
-        });
-    }
 private slots:
+    void hidesUnavailableSettings()
+    {
+        MainWindow window;
+        auto* settings = window.findChild<QPushButton*>("settingsButton");
+        QVERIFY(settings->isHidden());
+        window.findChild<QComboBox*>("methodComboBox")->setCurrentIndex(1);
+        QVERIFY(!settings->isHidden());
+        window.findChild<QComboBox*>("methodComboBox")->setCurrentIndex(0);
+        QVERIFY(settings->isHidden());
+    }
+
+    void unexpectedBackgroundFailureRestoresSolveButtonAndShowsMessage()
+    {
+        MainWindow window(nullptr, [](const PolynomialSolver::Core::SolveRequest&) -> PolynomialSolver::Core::SolveReport
+        {
+            throw std::runtime_error("unexpected failure");
+        });
+        bool seen = false;
+        clickSolve(window, &seen);
+        QVERIFY(seen);
+        QVERIFY(window.findChild<QPushButton*>("solveButton")->isEnabled());
+        QVERIFY(history(window)->toPlainText().isEmpty());
+    }
+
+    void staleBackgroundResultDoesNotReplaceEditedGraph()
+    {
+        const auto gate = std::make_shared<QSemaphore>();
+        struct Release { std::shared_ptr<QSemaphore> gate; ~Release() { gate->release(); } } release{gate};
+        MainWindow window(nullptr, [gate](const PolynomialSolver::Core::SolveRequest& request)
+        {
+            gate->acquire();
+            return PolynomialSolver::Core::SolveUseCase{}.execute(request);
+        });
+        window.show();
+        coefficient(window, 0)->setText("-2");
+        window.findChild<QPushButton*>("solveButton")->click();
+        auto* controller = window.findChild<PolynomialSolver::UI::SolveController*>();
+        QVERIFY(controller->isBusy());
+        QVERIFY(!window.findChild<QPushButton*>("solveButton")->isEnabled());
+        coefficient(window, 0)->setText("-9");
+        auto* progress = window.findChild<QProgressBar*>("loadingIndicator");
+        QVERIFY(progress);
+        QTest::qWait(60);
+        QVERIFY(progress->isHidden());
+        QTRY_VERIFY(!progress->isHidden());
+        gate->release();
+        QTRY_VERIFY(!controller->isBusy());
+        QVERIFY(history(window)->toPlainText().contains("x1 = 2"));
+        QCOMPARE(window.findChild<PolynomialChartView*>()->rootMarkerCount(), 0);
+        QVERIFY(window.findChild<PolynomialChartView*>()->hasPolynomial());
+        QCOMPARE(coefficient(window, 0)->text(), QStringLiteral("-9"));
+        QVERIFY(progress->isHidden());
+    }
     void latestEntryUsesActualTextFormattingWithoutBackground()
     {
         MainWindow window;
@@ -141,8 +203,7 @@ private slots:
         QVERIFY(!qobject_cast<QMessageBox*>(QApplication::activeModalWidget()));
         QVERIFY(coefficient(window, 1)->hasFocus());
         bool seen = false;
-        closeNextMessage(&seen);
-        clickSolve(window);
+        clickSolve(window, &seen);
         QVERIFY(seen);
         window.activateWindow();
         coefficient(window, 1)->setFocus();
@@ -167,7 +228,7 @@ private slots:
         MainWindow window;
         coefficient(window, 0)->setText("-2");
         clickSolve(window);
-        QVERIFY(history(window)->toPlainText().contains("x1 = 2"));
+        QTRY_VERIFY(history(window)->toPlainText().contains("x1 = 2"));
         QVERIFY(!coefficient(window, 1)->isReadOnly());
         QVERIFY(window.findChild<QRadioButton*>("degreeButton2")->isEnabled());
         coefficient(window, 0)->setText("-3");
@@ -196,7 +257,7 @@ private slots:
         coefficient(window, 1)->setText("0,5");
         coefficient(window, 0)->setText("-1");
         QTest::keyClick(coefficient(window, 0), Qt::Key_Return);
-        QVERIFY(history(window)->toPlainText().contains("x1 = 2"));
+        QTRY_VERIFY(history(window)->toPlainText().contains("x1 = 2"));
         window.findChild<QRadioButton*>("degreeButton3")->click();
         QCOMPARE(coefficient(window, 1)->text(), QStringLiteral("0,5"));
         QCOMPARE(coefficient(window, 0)->text(), QStringLiteral("-1"));
@@ -237,8 +298,7 @@ private slots:
         coefficient(window, 1)->setText("-3");
         coefficient(window, 0)->setText("2");
         bool seen = false;
-        closeNextMessage(&seen);
-        clickSolve(window);
+        clickSolve(window, &seen);
         QVERIFY(seen);
         const QString text = history(window)->toPlainText();
         QVERIFY(text.contains(QStringLiteral("Метод: аналитический")));

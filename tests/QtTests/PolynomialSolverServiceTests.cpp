@@ -5,6 +5,7 @@
 #include <stdexcept>
 
 #include <QList>
+#include <QElapsedTimer>
 #include <QtTest/QTest>
 
 using PolynomialSolver::Core::PolynomialSolverService;
@@ -15,6 +16,20 @@ class PolynomialSolverServiceTests final : public QObject
     Q_OBJECT
 
 private slots:
+    void solvesReportedQuinticWithoutBlocking()
+    {
+        QElapsedTimer elapsed;
+        elapsed.start();
+        const auto solved = PolynomialSolverService{}.solveNumerically(
+            {1, 54, 23, 3, 4, 5}, -100, 100, 0.25, 6);
+        qInfo("Reported quintic calculation: %lld microseconds", elapsed.nsecsElapsed() / 1000);
+        QCOMPARE(solved.result.roots.size(), std::size_t{1});
+        QVERIFY(solved.result.roots.front().real() > -54);
+        QVERIFY(solved.result.roots.front().real() < -53);
+        QVERIFY(std::isfinite(solved.residuals.front()));
+        QVERIFY(elapsed.elapsed() < 1000);
+    }
+
     void solvesLinearPolynomial()
     {
         const auto solved = PolynomialSolverService{}.solve({2.0, -6.0});
@@ -64,6 +79,15 @@ private slots:
     {
         QVERIFY_EXCEPTION_THROWN(
             PolynomialSolverService{}.solve({1e-308, -1e308}),
+            std::overflow_error);
+    }
+
+    void rejectsNonFiniteAnalyticalResidual()
+    {
+        // Scaling produces finite roots, but evaluating the original polynomial
+        // at the positive root overflows during Horner evaluation.
+        QVERIFY_EXCEPTION_THROWN(
+            PolynomialSolverService{}.solve({1e308, -1e308, -1.7e308}),
             std::overflow_error);
     }
 

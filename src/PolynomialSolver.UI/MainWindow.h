@@ -1,6 +1,6 @@
 #pragma once
 
-#include "PolynomialSolverService.h"
+#include "SolveController.h"
 #include <QMainWindow>
 #include <array>
 #include <memory>
@@ -17,11 +17,11 @@ namespace PolynomialSolver::UI
     {
         Q_OBJECT
     public:
-        explicit MainWindow(QWidget* parent = nullptr);
+        explicit MainWindow(QWidget* parent = nullptr, SolveController::Operation operation = {});
         ~MainWindow() override;
     private:
         std::unique_ptr<::Ui::MainWindow> ui_;
-        Core::PolynomialSolverService solver_;
+        SolveController* controller_{};
         BisectionSettingsDialog* settingsDialog_{};
         int selectedDegree_{1};
         int calculationCount_{};
@@ -31,12 +31,15 @@ namespace PolynomialSolver::UI
         std::vector<QLineEdit*> coefficientInputs_;
 
         void buildInterface();
+        void connectController();
         void rebuildEquationInputs(bool preserveCurrent = true);
         void updateSolverControls();
         void openBisectionSettings();
         std::optional<std::vector<double>> readCoefficients();
         void refreshPreview();
-        QString equationText() const;
+        Core::SolveMode currentMode() const;
+        bool matchesCurrentEquation(const std::vector<double>& coefficients) const;
+        void showReport(const Core::SolveReport& report);
         void appendResult(const QStringList& lines);
         void solve();
         void clear();

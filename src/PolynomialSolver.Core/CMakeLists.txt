@@ -5,12 +5,14 @@ add_library(PolynomialSolver.Core STATIC
     PolynomialSolverService.cpp
     QuadraticSolver.cpp
     RootVerifier.cpp
+    SolveUseCase.cpp
     CubicSolver.h
     LinearSolver.h
     Polynomial.h
     PolynomialSolverService.h
     QuadraticSolver.h
     RootVerifier.h
+    SolveUseCase.h
     BisectionSolver.h BisectionSolver.cpp
 )
 

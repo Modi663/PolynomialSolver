@@ -57,6 +57,7 @@ namespace PolynomialSolver::UI
         error_->setFixedHeight(error_->fontMetrics().lineSpacing() * 3);
         layout->addWidget(error_);
         auto* buttons = new QDialogButtonBox(QDialogButtonBox::Apply | QDialogButtonBox::Cancel, this);
+        buttons->setLayoutDirection(Qt::LeftToRight);
         applyButton_ = buttons->button(QDialogButtonBox::Apply);
         applyButton_->setText(QStringLiteral("Применить"));
         buttons->button(QDialogButtonBox::Cancel)->setText(QStringLiteral("Отмена"));

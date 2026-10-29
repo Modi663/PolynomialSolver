@@ -18,6 +18,19 @@ add_core_test(QuadraticSolverTests QuadraticSolverTests.cpp)
 add_core_test(CubicSolverTests CubicSolverTests.cpp)
 add_core_test(RootVerifierTests RootVerifierTests.cpp)
 add_core_test(PolynomialSolverServiceTests PolynomialSolverServiceTests.cpp)
+add_core_test(SolveUseCaseTests SolveUseCaseTests.cpp)
+
+qt_add_executable(SolveControllerTests SolveControllerTests.cpp)
+target_link_libraries(SolveControllerTests PRIVATE PolynomialSolver.UI Qt6::Test)
+add_test(NAME SolveControllerTests COMMAND SolveControllerTests)
+set_tests_properties(SolveControllerTests PROPERTIES
+    ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
+
+qt_add_executable(SolveReportFormatterTests SolveReportFormatterTests.cpp)
+target_link_libraries(SolveReportFormatterTests PRIVATE PolynomialSolver.UI Qt6::Test)
+add_test(NAME SolveReportFormatterTests COMMAND SolveReportFormatterTests)
+set_tests_properties(SolveReportFormatterTests PROPERTIES
+    ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
 
 qt_add_executable(BisectionSettingsDialogTests BisectionSettingsDialogTests.cpp)
 target_link_libraries(BisectionSettingsDialogTests PRIVATE PolynomialSolver.UI Qt6::Test)

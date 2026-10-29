@@ -13,117 +13,76 @@
 
 namespace PolynomialSolver::Core
 {
+    namespace
+    {
+        Polynomial checkedPolynomial(std::vector<double> coefficients, std::size_t maximumCount)
+        {
+            if (coefficients.size() < 2 || coefficients.size() > maximumCount)
+            {
+                throw std::invalid_argument(maximumCount == 4
+                    ? "Количество коэффициентов должно быть от 2 до 4."
+                    : "Количество коэффициентов должно быть от 2 до 6.");
+            }
+
+            return Polynomial(std::move(coefficients));
+        }
+
+        SolvedPolynomial verifiedSolution(const Polynomial& polynomial, SolveResult result)
+        {
+            std::vector<double> residuals;
+            residuals.reserve(result.roots.size());
+
+            for (const auto& root : result.roots)
+            {
+                if (!std::isfinite(root.real()) || !std::isfinite(root.imag()))
+                {
+                    throw std::overflow_error(
+                        "Коэффициенты слишком сильно различаются по величине "
+                        "для устойчивого вычисления корней.");
+                }
+
+                const double residual = RootVerifier::residual(polynomial, root);
+                if (!std::isfinite(residual))
+                    throw std::overflow_error("Невязка корня вышла за пределы типа double.");
+
+                residuals.push_back(residual);
+            }
+
+            return {polynomial.coefficients(), std::move(result), std::move(residuals)};
+        }
+    }
+
     SolvedPolynomial PolynomialSolverService::solveOneNumerically(
         std::vector<double> coefficients, double left, double right, int decimalPlaces) const
     {
-        if (coefficients.size() < 2 || coefficients.size() > 6)
-            throw std::invalid_argument("Количество коэффициентов должно быть от 2 до 6.");
-        const Polynomial polynomial(coefficients);
-        SolveResult result = BisectionSolver::solveOne(polynomial, left, right, decimalPlaces);
-        const double residual = RootVerifier::residual(polynomial, result.roots.front());
-        if (!std::isfinite(residual))
-            throw std::overflow_error("Невязка корня вышла за пределы типа double.");
-        return {std::move(coefficients), std::move(result), {residual}};
+        const auto polynomial = checkedPolynomial(std::move(coefficients), 6);
+        return verifiedSolution(polynomial,
+            BisectionSolver::solveOne(polynomial, left, right, decimalPlaces));
     }
 
-    SolvedPolynomial PolynomialSolverService::solve(
-        std::vector<double> coefficients) const
+    SolvedPolynomial PolynomialSolverService::solve(std::vector<double> coefficients) const
     {
-        if (coefficients.size() < 2 || coefficients.size() > 4)
-        {
-            throw std::invalid_argument(
-                "Количество коэффициентов должно быть от 2 до 4.");
-        }
-
-        const Polynomial polynomial(coefficients);
-        SolveResult result;
+        const auto polynomial = checkedPolynomial(std::move(coefficients), 4);
 
         switch (polynomial.degree())
         {
         case 1:
-            result = LinearSolver::solve(polynomial);
-            break;
-
+            return verifiedSolution(polynomial, LinearSolver::solve(polynomial));
         case 2:
-            result = QuadraticSolver::solve(polynomial);
-            break;
-
+            return verifiedSolution(polynomial, QuadraticSolver::solve(polynomial));
         case 3:
-            result = CubicSolver::solve(polynomial);
-            break;
-
+            return verifiedSolution(polynomial, CubicSolver::solve(polynomial));
         default:
-            throw std::logic_error(
-                "Polynomial degree is not implemented.");
+            throw std::logic_error("Polynomial degree is not implemented.");
         }
-
-        std::vector<double> residuals;
-        residuals.reserve(result.roots.size());
-
-        for (const auto& root : result.roots)
-        {
-            if (!std::isfinite(root.real())
-                || !std::isfinite(root.imag()))
-            {
-                throw std::overflow_error(
-                    "Коэффициенты слишком сильно различаются по величине "
-                    "для устойчивого вычисления корней.");
-            }
-
-            residuals.push_back(
-                RootVerifier::residual(polynomial, root));
-        }
-
-        return {
-            std::move(coefficients),
-            std::move(result),
-            std::move(residuals)
-        };
     }
 
     SolvedPolynomial PolynomialSolverService::solveNumerically(
-        std::vector<double> coefficients,
-        double left,
-        double right,
-        double step,
+        std::vector<double> coefficients, double left, double right, double step,
         int decimalPlaces) const
     {
-        if (coefficients.size() < 2 || coefficients.size() > 6)
-        {
-            throw std::invalid_argument(
-                "Количество коэффициентов должно быть от 2 до 6.");
-        }
-
-        const Polynomial polynomial(coefficients);
-
-        SolveResult result = BisectionSolver::solve(
-            polynomial,
-            left,
-            right,
-            step,
-            decimalPlaces);
-
-        std::vector<double> residuals;
-        residuals.reserve(result.roots.size());
-
-        for (const auto& root : result.roots)
-        {
-            const double residual =
-                RootVerifier::residual(polynomial, root);
-
-            if (!std::isfinite(residual))
-            {
-                throw std::overflow_error(
-                    "Невязка корня вышла за пределы типа double.");
-            }
-
-            residuals.push_back(residual);
-        }
-
-        return {
-            std::move(coefficients),
-            std::move(result),
-            std::move(residuals)
-        };
+        const auto polynomial = checkedPolynomial(std::move(coefficients), 6);
+        return verifiedSolution(polynomial,
+            BisectionSolver::solve(polynomial, left, right, step, decimalPlaces));
     }
 }

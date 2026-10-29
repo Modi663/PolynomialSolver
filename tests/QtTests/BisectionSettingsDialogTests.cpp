@@ -15,6 +15,16 @@ class BisectionSettingsDialogTests final : public QObject
     Q_OBJECT
 
 private slots:
+    void cancelIsOnTheLeftAndApplyIsOnTheRight()
+    {
+        BisectionSettingsDialog dialog;
+        dialog.show();
+        QTest::qWait(10);
+        const auto* buttons = dialog.findChild<QDialogButtonBox*>();
+        QVERIFY(buttons->button(QDialogButtonBox::Cancel)->geometry().center().x()
+            < buttons->button(QDialogButtonBox::Apply)->geometry().center().x());
+    }
+
     void boundsStartEmptyAndAreRequired()
     {
         BisectionSettingsDialog dialog;

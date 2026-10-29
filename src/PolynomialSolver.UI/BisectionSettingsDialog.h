@@ -1,5 +1,7 @@
 #pragma once
 
+#include "SolveUseCase.h"
+
 #include <QDialog>
 
 #include <array>
@@ -13,14 +15,7 @@ class QPushButton;
 
 namespace PolynomialSolver::UI
 {
-    struct BisectionSettings
-    {
-        double left{};
-        double right{};
-        double step{0.25};
-        int decimalPlaces{6};
-        bool findAll{false};
-    };
+    using BisectionSettings = Core::BisectionOptions;
 
     class BisectionSettingsDialog final : public QDialog
     {
