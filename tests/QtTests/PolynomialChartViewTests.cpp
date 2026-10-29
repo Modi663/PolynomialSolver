@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include <limits>
+#include <numeric>
 
 using PolynomialSolver::UI::PolynomialChartView;
 
@@ -25,7 +26,215 @@ class PolynomialChartViewTests final : public QObject
 {
     Q_OBJECT
 
+private:
+    static void wheelAt(PolynomialChartView& view, const QPointF position, int delta)
+    {
+        auto* target = view.QChartView::viewport();
+        QWheelEvent event(position, target->mapToGlobal(position.toPoint()), QPoint(), QPoint(0, delta),
+            Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+        QApplication::sendEvent(target, &event);
+    }
+    static bool hasEqualUnits(const PolynomialChartView& view)
+    {
+        const auto origin = view.chart()->mapToPosition(QPointF(0, 0));
+        const auto xUnit = view.chart()->mapToPosition(QPointF(1, 0));
+        const auto yUnit = view.chart()->mapToPosition(QPointF(0, 1));
+        return std::abs(QLineF(origin, xUnit).length() - QLineF(origin, yUnit).length()) < 0.001;
+    }
+
 private slots:
+    void zoomDoesNotMoveThePlotAreaWhenTickLabelsChange()
+    {
+        PolynomialChartView view;
+        view.resize(720, 420);
+        view.show();
+        view.setPolynomial({1, 0}, {});
+        QTest::qWait(30);
+        const auto initialPlot = view.chart()->plotArea();
+        for (int index = 0; index < 80; ++index)
+        {
+            const auto plot = view.chart()->plotArea();
+            const QPointF local = view.mapFromScene(view.chart()->mapToScene(
+                plot.topLeft() + QPointF(plot.width() * 0.78, plot.height() * 0.28)));
+            wheelAt(view, local, index < 40 ? -120 : 120);
+            QCoreApplication::processEvents();
+            QCOMPARE(view.chart()->plotArea(), initialPlot);
+            QTRY_VERIFY(hasEqualUnits(view));
+        }
+    }
+
+    void wheelKeepsThePointUnderTheCursorWhenLabelsChange()
+    {
+        PolynomialChartView view;
+        view.resize(720, 420);
+        view.show();
+        view.setPolynomial({1, 0}, {});
+        QTest::qWait(30);
+        const auto plot = view.chart()->plotArea();
+        const QPointF requestedPosition = plot.topLeft() + QPointF(plot.width() * 0.78, plot.height() * 0.27);
+        const QPointF local = view.mapFromScene(view.chart()->mapToScene(requestedPosition));
+        const QPointF position = view.chart()->mapFromScene(view.mapToScene(local.toPoint()));
+        const QPointF anchor = view.chart()->mapToValue(position);
+        for (int index = 0; index < 40; ++index)
+        {
+            wheelAt(view, local, index < 20 ? -120 : 120);
+            const auto mapped = view.chart()->mapToPosition(anchor);
+            QVERIFY2(QLineF(mapped, position).length() < 0.1, "Zoom must keep the same world point under the cursor");
+        }
+    }
+
+    void repeatedZoomStopsBeforeLosingEqualUnitsToRounding()
+    {
+        PolynomialChartView view;
+        view.resize(720, 420);
+        view.show();
+        view.setPolynomial({1, 0}, {});
+        QTest::qWait(30);
+        const QPointF position(470, 130);
+        for (int index = 0; index < 240; ++index)
+        {
+            wheelAt(view, position, 120);
+            const auto range = view.visibleViewport();
+            const auto plot = view.chart()->plotArea();
+            const double xScale = range.x.span() / plot.width();
+            const double yScale = range.y.span() / plot.height();
+            QVERIFY2(std::abs(xScale / yScale - 1) < 1e-8, "Rounding must not distort the equal-unit view");
+        }
+        const auto smallest = view.visibleViewport();
+        wheelAt(view, position, 120);
+        QCOMPARE(view.visibleViewport().x.minimum, smallest.x.minimum);
+        QCOMPARE(view.visibleViewport().x.maximum, smallest.x.maximum);
+    }
+
+    void extremeWheelInputKeepsPreviousValidView()
+    {
+        PolynomialChartView view;
+        view.resize(720, 420);
+        view.show();
+        view.setPolynomial({1, 0}, {});
+        QTest::qWait(30);
+        const auto before = view.visibleViewport();
+        const QPointF center(view.QChartView::viewport()->width() / 2.0, view.QChartView::viewport()->height() / 2.0);
+        wheelAt(view, center, std::numeric_limits<int>::max());
+        wheelAt(view, center, std::numeric_limits<int>::min());
+        QCOMPARE(view.visibleViewport().x.minimum, before.x.minimum);
+        QCOMPARE(view.visibleViewport().x.maximum, before.x.maximum);
+        QCOMPARE(view.visibleViewport().y.minimum, before.y.minimum);
+        QCOMPARE(view.visibleViewport().y.maximum, before.y.maximum);
+    }
+
+    void resizingAtTheNumericZoomLimitKeepsEqualUnits()
+    {
+        PolynomialChartView view;
+        view.resize(720, 420);
+        view.show();
+        view.setPolynomial({1, 0}, {});
+        QTest::qWait(30);
+        const auto plot = view.chart()->plotArea();
+        const QPointF local = view.mapFromScene(view.chart()->mapToScene(plot.center()));
+        wheelAt(view, local, -464659);
+        view.resize(2000, 1000);
+        QTest::qWait(20);
+        const auto range = view.visibleViewport();
+        const auto resizedPlot = view.chart()->plotArea();
+        const double xScale = range.x.span() / resizedPlot.width();
+        const double yScale = range.y.span() / resizedPlot.height();
+        QVERIFY(std::isfinite(range.x.span()));
+        QVERIFY(std::isfinite(range.y.span()));
+        QVERIFY(std::abs(xScale / yScale - 1) < 1e-8);
+    }
+
+    void extremeFiniteSlopeIsClippedWithoutFillingThePlot()
+    {
+        PolynomialChartView view;
+        view.resize(720, 420);
+        view.show();
+        view.setPolynomial({1e200, 0}, {});
+        QTest::qWait(30);
+        const QImage image = view.QChartView::viewport()->grab().toImage();
+        qsizetype bluePixels = 0;
+        for (int y = 0; y < image.height(); ++y)
+            for (int x = 0; x < image.width(); ++x)
+            {
+                const auto color = image.pixelColor(x, y);
+                if (color.blue() > color.red() + 50 && color.blue() > color.green() + 40)
+                    ++bluePixels;
+            }
+        QVERIFY(bluePixels > 0);
+        QVERIFY(bluePixels < image.width() * image.height() / 10);
+    }
+
+    void rootMarkersEnterViewWhenPannedAndInvalidInputDoesNotResetIt()
+    {
+        PolynomialChartView view;
+        view.resize(720, 420);
+        view.show();
+        view.setPolynomial({1, -20}, {{20, 0}});
+        QTest::qWait(30);
+        QCOMPARE(view.rootMarkerCount(), 0);
+        auto* target = view.QChartView::viewport();
+        const QPoint start(target->width() - 50, target->height() / 2);
+        QTest::mousePress(target, Qt::LeftButton, Qt::NoModifier, start);
+        QTest::mouseMove(target, start - QPoint(400, 0), 10);
+        QTest::mouseRelease(target, Qt::LeftButton, Qt::NoModifier, start - QPoint(400, 0));
+        QCOMPARE(view.rootMarkerCount(), 1);
+        const auto moved = view.visibleViewport();
+        view.clearGraph();
+        view.setPolynomial({1, -20}, {{20, 0}});
+        QTest::qWait(20);
+        QCOMPARE(view.rootMarkerCount(), 1);
+        QCOMPARE(view.visibleViewport().x.minimum, moved.x.minimum);
+        QTRY_VERIFY(hasEqualUnits(view));
+    }
+
+    void usesEqualPhysicalUnitsAndKeepsViewWhileEquationChanges()
+    {
+        PolynomialChartView view;
+        view.resize(720, 420);
+        view.show();
+        view.setPolynomial({1, 0}, {});
+        QTest::qWait(40);
+        QTRY_VERIFY(hasEqualUnits(view));
+        const auto original = view.visibleViewport();
+        view.updatePolynomial({1, -20, 0, 0});
+        QTest::qWait(300);
+        QTRY_VERIFY(hasEqualUnits(view));
+        QCOMPARE(view.visibleViewport().x.minimum, original.x.minimum);
+        QCOMPARE(view.visibleViewport().x.maximum, original.x.maximum);
+        QCOMPARE(view.visibleViewport().y.minimum, original.y.minimum);
+        QCOMPARE(view.visibleViewport().y.maximum, original.y.maximum);
+        QCOMPARE(qobject_cast<QValueAxis*>(view.chart()->axes(Qt::Horizontal).front())->tickInterval(),
+            qobject_cast<QValueAxis*>(view.chart()->axes(Qt::Vertical).front())->tickInterval());
+        view.setPolynomial({1, -20, 0, 0}, {{0, 0}, {0, 0}, {20, 0}});
+        QCOMPARE(view.visibleViewport().x.minimum, original.x.minimum);
+        QCOMPARE(view.visibleViewport().y.maximum, original.y.maximum);
+        view.clearGraph();
+        view.updatePolynomial({1, -20, 0, 0});
+        QCOMPARE(view.visibleViewport().x.minimum, original.x.minimum);
+        QCOMPARE(view.visibleViewport().y.maximum, original.y.maximum);
+    }
+
+    void resizePreservesUnitScaleAndCenter()
+    {
+        PolynomialChartView view;
+        view.resize(720, 420);
+        view.show();
+        view.setPolynomial({1, -20, 0, 0}, {});
+        QTest::qWait(40);
+        const auto before = view.visibleViewport();
+        const double beforeScale = before.x.span() / view.chart()->plotArea().width();
+        view.resize(980, 560);
+        QTest::qWait(40);
+        const auto after = view.visibleViewport();
+        const auto plot = view.chart()->plotArea();
+        QVERIFY(std::abs(after.x.span() / plot.width() - beforeScale) < 1e-10);
+        QVERIFY(std::abs(after.y.span() / plot.height() - beforeScale) < 1e-10);
+        QVERIFY(std::abs(std::midpoint(after.x.minimum, after.x.maximum)
+            - std::midpoint(before.x.minimum, before.x.maximum)) < 1e-10);
+        QVERIFY(std::abs(std::midpoint(after.y.minimum, after.y.maximum)
+            - std::midpoint(before.y.minimum, before.y.maximum)) < 1e-10);
+    }
+
     void removesOldCurveWhenNewPolynomialOverflowsAllSamples()
     {
         PolynomialChartView view;
@@ -60,23 +269,28 @@ private slots:
     {
         PolynomialChartView view;
         view.resize(720, 420);
+        view.show();
         view.setPolynomial({1, 0}, {});
+        QTest::qWait(30);
         auto* axis = qobject_cast<QValueAxis*>(view.chart()->axes(Qt::Vertical).front());
         QVERIFY(axis);
         bool denseIntermediateState = false;
+        int rangeChanges = 0;
         const auto checkTickDensity = [&]
         {
             if (axis->tickType() == QValueAxis::TicksDynamic)
                 denseIntermediateState |= (axis->max() - axis->min()) / axis->tickInterval() > 30;
         };
-        connect(axis, &QValueAxis::rangeChanged, &view, checkTickDensity);
+        connect(axis, &QValueAxis::rangeChanged, &view, [&] { ++rangeChanges; checkTickDensity(); });
         connect(axis, &QValueAxis::tickIntervalChanged, &view, checkTickDensity);
-        view.setPolynomial({20, 0}, {});
-        view.setPolynomial({1, 0}, {});
+        const QPointF center(view.QChartView::viewport()->width() / 2.0, view.QChartView::viewport()->height() / 2.0);
+        wheelAt(view, center, -3600);
+        wheelAt(view, center, 3600);
+        QVERIFY(rangeChanges > 0);
         QVERIFY2(!denseIntermediateState, "Axis range and tick interval must remain consistent throughout the update");
     }
 
-    void fitsReportedQuinticRootWithoutDenseTicksOrStalePainting()
+    void reportedQuinticDoesNotChangeManualViewOrCreateDenseTicks()
     {
         PolynomialChartView view;
         PaintCounter paints;
@@ -87,6 +301,7 @@ private slots:
         view.setPolynomial(coefficients, {});
         QTest::qWait(30);
         const int beforeFit = paints.count;
+        const auto original = view.visibleViewport();
 
         auto* axis = qobject_cast<QValueAxis*>(view.chart()->axes(Qt::Vertical).front());
         QVERIFY(axis);
@@ -99,13 +314,13 @@ private slots:
         connect(axis, &QValueAxis::tickIntervalChanged, &view, checkTickDensity);
 
         // The numerical solution for [-100, 100], step 0.25, lies in (-54, -53).
-        // Supplying it changes the fitted vertical range by several orders.
+        // Supplying roots must preserve the manual view, even for distant roots.
         view.setPolynomial(coefficients, {{-53.5716886645332, 0.0}});
         QVERIFY(!denseIntermediateState);
-        QCOMPARE(view.rootMarkerCount(), 1);
-        QVERIFY(view.curvePointCount() >= 800);
-        QVERIFY(view.visibleViewport().x.minimum < -54.0);
-        QVERIFY(view.visibleViewport().x.maximum > -53.0);
+        QCOMPARE(view.rootMarkerCount(), 0);
+        QVERIFY(view.curvePointCount() > 2);
+        QCOMPARE(view.visibleViewport().x.minimum, original.x.minimum);
+        QCOMPARE(view.visibleViewport().y.maximum, original.y.maximum);
         QTRY_VERIFY(paints.count > beforeFit);
 
         view.setPolynomial({1, 0}, {});
@@ -119,7 +334,19 @@ private slots:
         view.show();
         view.setPolynomial({1, 0, 0, 0}, {});
         QTest::qWait(30);
-        QVERIFY(view.curvePointCount() >= view.QChartView::viewport()->width() * 2);
+        // Only visible segments reach Qt; clipping must retain the original
+        // dense sample spacing on those segments rather than offscreen points.
+        QVERIFY(view.curvePointCount() > 2);
+        const auto physicalWidth = qRound(view.QChartView::viewport()->width() * view.devicePixelRatioF());
+        const double maximumStep = view.visibleViewport().x.span()
+            / (std::clamp(physicalWidth, 400, 8000) * 2 - 1);
+        for (const auto* series : view.chart()->series())
+            if (const auto* curve = qobject_cast<const QLineSeries*>(series); curve && curve->count() > 2)
+            {
+                const auto points = curve->points();
+                for (qsizetype index = 1; index < points.size(); ++index)
+                    QVERIFY(points[index].x() - points[index - 1].x() <= maximumStep * (1 + 1e-10));
+            }
         const QImage image = view.QChartView::viewport()->grab().toImage();
         QVERIFY(!image.isNull());
         bool blendedEdge = false;
@@ -148,7 +375,7 @@ private slots:
         QTest::qWait(250);
         bool foundCurve = false;
         for (auto* series : view.chart()->series())
-            if (auto* curve = qobject_cast<QLineSeries*>(series); curve && curve->count() >= 400)
+            if (auto* curve = qobject_cast<QLineSeries*>(series); curve && curve->count() > 2)
             {
                 foundCurve = true;
                 for (const auto& point : curve->points())
@@ -201,12 +428,13 @@ private slots:
         QVERIFY(qobject_cast<QChartView*>(&view) != nullptr);
         QVERIFY(view.hasPolynomial());
         const auto physicalWidth = qRound(view.QChartView::viewport()->width() * view.devicePixelRatioF());
-        QCOMPARE(view.curvePointCount(), qsizetype(std::clamp(physicalWidth, 400, 8000) * 2));
+        QVERIFY(view.curvePointCount() > 2);
+        QVERIFY(view.curvePointCount() <= qsizetype(std::clamp(physicalWidth, 400, 8000) * 2));
         QCOMPARE(view.rootMarkerCount(), 2);
         QCOMPARE(view.zeroAxisSeriesCount(), 2);
     }
 
-    void wheelZoomsAndResetRestoresFit()
+    void wheelZoomsBothAxesAndResetRestoresInitialView()
     {
         PolynomialChartView view;
         view.resize(720, 420);
@@ -229,6 +457,7 @@ private slots:
         QApplication::sendEvent(eventTarget, &event);
 
         QVERIFY(view.visibleViewport().x.span() < fitted.x.span());
+        QTRY_VERIFY(hasEqualUnits(view));
         QVERIFY(view.curvePointCount() >= 400);
 
         view.resetView();
@@ -237,6 +466,7 @@ private slots:
         QCOMPARE(view.visibleViewport().x.maximum, fitted.x.maximum);
         QCOMPARE(view.visibleViewport().y.minimum, fitted.y.minimum);
         QCOMPARE(view.visibleViewport().y.maximum, fitted.y.maximum);
+        QTRY_VERIFY(hasEqualUnits(view));
     }
 
     void leftDragPansTheVisibleRange()
@@ -256,6 +486,7 @@ private slots:
 
         QVERIFY(view.visibleViewport().x.minimum < before.x.minimum);
         QVERIFY(view.visibleViewport().y.minimum > before.y.minimum);
+        QTRY_VERIFY(hasEqualUnits(view));
     }
 
     void clearRemovesAllGraphData()

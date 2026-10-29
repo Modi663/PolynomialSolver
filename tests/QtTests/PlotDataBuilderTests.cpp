@@ -12,27 +12,48 @@ class PlotDataBuilderTests final : public QObject
     Q_OBJECT
 
 private slots:
-    void fitsLinearPolynomialAroundItsRoot()
+    void buildsViewportWithOneSharedUnitScale()
     {
-        const auto viewport = PlotDataBuilder::fit(
-            {1.0, -2.0},
-            {{2.0, 0.0}});
-
-        QCOMPARE(viewport.x.minimum, -1.0);
-        QCOMPARE(viewport.x.maximum, 5.0);
-        QVERIFY(viewport.y.minimum < -1.0);
-        QVERIFY(viewport.y.maximum > 1.0);
-        QCOMPARE(viewport.y.minimum, -viewport.y.maximum);
+        const auto viewport = PlotDataBuilder::equalScaleViewport(QPointF(7, -2), 0.05, QSizeF(600, 400));
+        QVERIFY(viewport);
+        QCOMPARE(viewport->x.minimum, -8.0);
+        QCOMPARE(viewport->x.maximum, 22.0);
+        QCOMPARE(viewport->y.minimum, -12.0);
+        QCOMPARE(viewport->y.maximum, 8.0);
+        QCOMPARE(viewport->x.span() / 600, viewport->y.span() / 400);
+        const auto tall = PlotDataBuilder::equalScaleViewport(QPointF(7, -2), 0.05, QSizeF(200, 600));
+        QVERIFY(tall);
+        QCOMPARE(tall->x.span(), 10.0);
+        QCOMPARE(tall->y.span(), 30.0);
     }
 
-    void centersQuadraticWithoutRealRootsOnVertex()
+    void rejectsInvalidScaleGeometry_data()
     {
-        const auto viewport = PlotDataBuilder::fit(
-            {1.0, -4.0, 5.0},
-            {{2.0, 1.0}, {2.0, -1.0}});
+        QTest::addColumn<QPointF>("center");
+        QTest::addColumn<double>("scale");
+        QTest::addColumn<QSizeF>("area");
+        const auto infinity = std::numeric_limits<double>::infinity();
+        const auto nan = std::numeric_limits<double>::quiet_NaN();
+        const auto maximum = std::numeric_limits<double>::max();
+        QTest::newRow("zero-scale") << QPointF() << 0.0 << QSizeF(600, 400);
+        QTest::newRow("negative-scale") << QPointF() << -1.0 << QSizeF(600, 400);
+        QTest::newRow("subnormal-scale") << QPointF() << std::numeric_limits<double>::denorm_min() << QSizeF(600, 400);
+        QTest::newRow("infinite-scale") << QPointF() << infinity << QSizeF(600, 400);
+        QTest::newRow("invalid-center") << QPointF(nan, 0) << 0.05 << QSizeF(600, 400);
+        QTest::newRow("zero-area") << QPointF() << 0.05 << QSizeF(0, 400);
+        QTest::newRow("negative-area") << QPointF() << 0.05 << QSizeF(600, -1);
+        QTest::newRow("infinite-area") << QPointF() << 0.05 << QSizeF(infinity, 400);
+        QTest::newRow("overflow") << QPointF() << maximum << QSizeF(600, 400);
+        QTest::newRow("unrepresentable-scale") << QPointF(1e308, 0) << 0.05 << QSizeF(600, 400);
+        QTest::newRow("rounded-scale") << QPointF(1, 1) << 1e-18 << QSizeF(600, 400);
+    }
 
-        QCOMPARE(viewport.x.minimum, -1.0);
-        QCOMPARE(viewport.x.maximum, 5.0);
+    void rejectsInvalidScaleGeometry()
+    {
+        QFETCH(QPointF, center);
+        QFETCH(double, scale);
+        QFETCH(QSizeF, area);
+        QVERIFY(!PlotDataBuilder::equalScaleViewport(center, scale, area));
     }
 
     void returnsDistinctNearlyRealRootMarkers()
@@ -58,6 +79,37 @@ private slots:
         QCOMPARE(narrow.front().size(), 800);
         QCOMPARE(wide.size(), std::size_t{1});
         QCOMPARE(wide.front().size(), 6000);
+    }
+
+    void clipsSteepSegmentsWithoutOverflowOrLosingIntersections()
+    {
+        using PolynomialSolver::UI::PlotSegments;
+        const PlotSegments crossing{{QPointF(-2, -1e308), QPointF(2, 1e308)}};
+        const auto clipped = PlotDataBuilder::clipToYRange(crossing, {-5, 5});
+        QCOMPARE(clipped.size(), std::size_t{1});
+        QCOMPARE(clipped.front().size(), 2);
+        QCOMPARE(clipped.front().front().y(), -5.0);
+        QCOMPARE(clipped.front().back().y(), 5.0);
+        for (const auto point : clipped.front()) QVERIFY(std::isfinite(point.x()));
+
+        const PlotSegments outside{{QPointF(-1, 10), QPointF(1, 20)}};
+        QVERIFY(PlotDataBuilder::clipToYRange(outside, {-5, 5}).empty());
+        const PlotSegments reentering{{QPointF(-3, 0), QPointF(-2, 2),
+            QPointF(-1, 3), QPointF(0, 0)}};
+        const auto separated = PlotDataBuilder::clipToYRange(reentering, {-1, 1});
+        QCOMPARE(separated.size(), std::size_t{2});
+        QCOMPARE(separated[0].back(), QPointF(-2.5, 1));
+        QCOMPARE(separated[1].front().y(), 1.0);
+        QCOMPARE(separated[1].back(), QPointF(0, 0));
+    }
+
+    void samplesExtremeFiniteRangesWithoutIntermediateOverflow()
+    {
+        const auto segments = PlotDataBuilder::sample({0, 1}, {-5e307, 5e307}, 400);
+        QCOMPARE(segments.size(), std::size_t{1});
+        QCOMPARE(segments.front().size(), 800);
+        QCOMPARE(segments.front().front(), QPointF(-5e307, 1));
+        QCOMPARE(segments.front().back(), QPointF(5e307, 1));
     }
 
     void omitsNonFiniteSamples()
@@ -110,35 +162,7 @@ private slots:
         QVERIFY(range.span() / step <= 30.0);
     }
 
-    void keepsFitRangesFiniteForExtremeCoefficients()
-    {
-        const auto viewport = PlotDataBuilder::fit(
-            {1.7e308, 0.0, 1.7e308},
-            {{0.0, 1.0}, {0.0, -1.0}});
 
-        QVERIFY(std::isfinite(viewport.x.minimum));
-        QVERIFY(std::isfinite(viewport.x.maximum));
-        QVERIFY(std::isfinite(viewport.y.minimum));
-        QVERIFY(std::isfinite(viewport.y.maximum));
-        QVERIFY(viewport.y.minimum < viewport.y.maximum);
-    }
-
-    void keepsFitRangeUsableAroundLargeFiniteRoots()
-    {
-        for (const double root : {1e20, 1e308, -1e308})
-        {
-            const auto viewport = PlotDataBuilder::fit(
-                {1.0, -root},
-                {{root, 0.0}});
-
-            QVERIFY(std::isfinite(viewport.x.minimum));
-            QVERIFY(std::isfinite(viewport.x.maximum));
-            QVERIFY(std::isfinite(viewport.x.span()));
-            QVERIFY(viewport.x.minimum < viewport.x.maximum);
-            QVERIFY(viewport.x.minimum <= root);
-            QVERIFY(root <= viewport.x.maximum);
-        }
-    }
 };
 
 QTEST_APPLESS_MAIN(PlotDataBuilderTests)

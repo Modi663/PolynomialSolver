@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <numeric>
 
 namespace
 {
@@ -27,113 +26,35 @@ namespace
             1e-8 * (1.0 + std::abs(root.real()));
     }
 
-    PolynomialSolver::UI::AxisRange centeredFiniteRange(
-        const double center,
-        const double requestedWidth)
-    {
-        const double halfWidth = requestedWidth / 2.0;
-        const PolynomialSolver::UI::AxisRange requested{
-            center - halfWidth,
-            center + halfWidth
-        };
 
-        if (std::isfinite(requested.minimum) &&
-            std::isfinite(requested.maximum) &&
-            requested.minimum < requested.maximum &&
-            std::isfinite(requested.span()))
-        {
-            return requested;
-        }
-
-        const double infinity = std::numeric_limits<double>::infinity();
-        double minimum = std::nextafter(center, -infinity);
-        double maximum = std::nextafter(center, infinity);
-
-        if (!std::isfinite(minimum))
-        {
-            minimum = center;
-        }
-
-        if (!std::isfinite(maximum))
-        {
-            maximum = center;
-        }
-
-        const PolynomialSolver::UI::AxisRange adjacent{minimum, maximum};
-        if (adjacent.minimum < adjacent.maximum &&
-            std::isfinite(adjacent.span()))
-        {
-            return adjacent;
-        }
-
-        return {-3.0, 3.0};
-    }
 }
 
 namespace PolynomialSolver::UI
 {
-    PlotViewport PlotDataBuilder::fit(
-        const std::vector<double>& coefficients,
-        const std::vector<std::complex<double>>& roots)
+    std::optional<PlotViewport> PlotDataBuilder::equalScaleViewport(
+        const QPointF center, const double unitsPerPixel, const QSizeF plotSize)
     {
-        std::vector<double> realRoots;
+        if (!std::isfinite(center.x()) || !std::isfinite(center.y())
+            || !std::isfinite(unitsPerPixel) || unitsPerPixel < std::numeric_limits<double>::min()
+            || !std::isfinite(plotSize.width()) || !std::isfinite(plotSize.height())
+            || plotSize.width() <= 0 || plotSize.height() <= 0)
+            return std::nullopt;
 
-        for (const auto& root : roots)
-        {
-            if (isNearlyReal(root) && std::isfinite(root.real()))
-            {
-                realRoots.push_back(root.real());
-            }
-        }
-
-        double centerX = 0.0;
-        double rootSpan = 0.0;
-
-        if (!realRoots.empty())
-        {
-            const auto [minimum, maximum] = std::minmax_element(
-                realRoots.begin(), realRoots.end());
-            centerX = std::midpoint(*minimum, *maximum);
-            rootSpan = *maximum - *minimum;
-        }
-        else if (coefficients.size() == 3 && coefficients[0] != 0.0)
-        {
-            const double vertex = -coefficients[1] / (2.0 * coefficients[0]);
-
-            if (std::isfinite(vertex))
-            {
-                centerX = vertex;
-            }
-        }
-
-        constexpr double maximumAxisSpan =
-            std::numeric_limits<double>::max() / 2.0;
-        const double width = !std::isfinite(rootSpan) ||
-            rootSpan >= maximumAxisSpan - 4.0
-            ? maximumAxisSpan
-            : std::max(6.0, rootSpan + 4.0);
-        const AxisRange xRange = centeredFiniteRange(centerX, width);
-
-        double maximumAbsoluteY = 1.0;
-
-        for (int index = 0; index <= 200; ++index)
-        {
-            const double x = xRange.minimum +
-                xRange.span() * static_cast<double>(index) / 200.0;
-            const double y = evaluate(coefficients, x);
-
-            if (std::isfinite(y))
-            {
-                maximumAbsoluteY = std::max(maximumAbsoluteY, std::abs(y));
-            }
-        }
-
-        constexpr double maximumAxisExtent =
-            std::numeric_limits<double>::max() / 4.0;
-        const double yExtent = maximumAbsoluteY > maximumAxisExtent / 1.3
-            ? maximumAxisExtent
-            : maximumAbsoluteY * 1.3;
-        return {xRange, {-yExtent, yExtent}};
+        const double halfWidth = unitsPerPixel * (plotSize.width() / 2);
+        const double halfHeight = unitsPerPixel * (plotSize.height() / 2);
+        const PlotViewport viewport{{center.x() - halfWidth, center.x() + halfWidth},
+            {center.y() - halfHeight, center.y() + halfHeight}};
+        for (const AxisRange range : {viewport.x, viewport.y})
+            if (!std::isfinite(range.minimum) || !std::isfinite(range.maximum)
+                || !std::isfinite(range.span()) || range.minimum >= range.maximum)
+                return std::nullopt;
+        // At a nonzero center, finite endpoints can still be only a few ULPs
+        // apart. Reject zoom levels where rounding distorts the shared scale.
+        constexpr double scaleTolerance = 1e-9;
+        if (std::abs(viewport.x.span() / plotSize.width() / unitsPerPixel - 1) > scaleTolerance
+            || std::abs(viewport.y.span() / plotSize.height() / unitsPerPixel - 1) > scaleTolerance)
+            return std::nullopt;
+        return viewport;
     }
 
     QVector<QPointF> PlotDataBuilder::realRootMarkers(
@@ -198,9 +119,8 @@ namespace PolynomialSolver::UI
 
         for (int index = 0; index < pointCount; ++index)
         {
-            const double x = xRange.minimum +
-                xRange.span() * static_cast<double>(index) /
-                static_cast<double>(pointCount - 1);
+            const double x = std::lerp(xRange.minimum, xRange.maximum,
+                static_cast<double>(index) / static_cast<double>(pointCount - 1));
             const double y = evaluate(coefficients, x);
 
             if (!std::isfinite(x) || !std::isfinite(y))
@@ -214,6 +134,54 @@ namespace PolynomialSolver::UI
 
         finishCurrentSegment();
         return segments;
+    }
+
+    PlotSegments PlotDataBuilder::clipToYRange(const PlotSegments& segments, const AxisRange yRange)
+    {
+        PlotSegments clipped;
+        QVector<QPointF> current;
+        const auto finish = [&]
+        {
+            if (current.size() >= 2) clipped.push_back(std::move(current));
+            current = {};
+        };
+        const auto intersection = [](const QPointF a, const QPointF b, const double y)
+        {
+            // Opposite large values can overflow b.y()-a.y(). Normalize only
+            // that case; same-sign subtraction retains nearby-value accuracy.
+            const double scale = std::signbit(a.y()) != std::signbit(b.y())
+                ? std::max(std::abs(a.y()), std::abs(b.y())) : 1.0;
+            const double fraction = (y / scale - a.y() / scale) / (b.y() / scale - a.y() / scale);
+            return QPointF(std::lerp(a.x(), b.x(), std::clamp(fraction, 0.0, 1.0)), y);
+        };
+        for (const auto& segment : segments)
+        {
+            for (qsizetype index = 1; index < segment.size(); ++index)
+            {
+                const QPointF a = segment[index - 1];
+                const QPointF b = segment[index];
+                if ((a.y() < yRange.minimum && b.y() < yRange.minimum)
+                    || (a.y() > yRange.maximum && b.y() > yRange.maximum))
+                {
+                    finish();
+                    continue;
+                }
+                const auto trim = [&](const QPointF point)
+                {
+                    if (point.y() < yRange.minimum) return intersection(a, b, yRange.minimum);
+                    if (point.y() > yRange.maximum) return intersection(a, b, yRange.maximum);
+                    return point;
+                };
+                const QPointF first = trim(a);
+                const QPointF last = trim(b);
+                if (!current.isEmpty() && current.back() != first) finish();
+                if (current.isEmpty()) current.push_back(first);
+                current.push_back(last);
+                if (last != b) finish();
+            }
+            finish();
+        }
+        return clipped;
     }
 
     double PlotDataBuilder::gridStep(

@@ -266,6 +266,8 @@ private slots:
     void opensRequiredSettingsAndSwitchesOneAndAllRoots()
     {
         MainWindow window;
+        window.show();
+        QTest::qWait(20);
         window.findChild<QRadioButton*>("degreeButton2")->click();
         window.findChild<QComboBox*>("methodComboBox")->setCurrentIndex(1);
         clickSolve(window);
@@ -315,6 +317,8 @@ private slots:
     void fifthDegreeOnlyUsesBisection()
     {
         MainWindow window;
+        window.show();
+        QTest::qWait(20);
         window.findChild<QRadioButton*>("degreeButton5")->click();
         auto* method = window.findChild<QComboBox*>("methodComboBox");
         QCOMPARE(method->currentIndex(), 1);

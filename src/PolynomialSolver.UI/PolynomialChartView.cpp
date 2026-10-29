@@ -12,9 +12,12 @@
 #include <QResizeEvent>
 #include <QWheelEvent>
 #include <QVariantAnimation>
+#include <QScopedValueRollback>
+#include <QFontMetricsF>
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace PolynomialSolver::UI
 {
@@ -31,7 +34,6 @@ namespace PolynomialSolver::UI
         chart_->legend()->hide();
         chart_->setMargins(QMargins(4, 4, 4, 4));
         chart_->setBackgroundRoundness(0.0);
-        chart_->setTitle(QStringLiteral("Введите корректные коэффициенты"));
 
         xAxis_ = new QValueAxis(chart_);
         yAxis_ = new QValueAxis(chart_);
@@ -87,18 +89,20 @@ namespace PolynomialSolver::UI
                 renderedCoefficients_[index] = std::lerp(
                     coefficientAt(animationStartCoefficients_), coefficientAt(coefficients_), progress);
             }
-            visibleViewport_ = {
-                {std::lerp(animationStartViewport_.x.minimum, fittedViewport_.x.minimum, progress),
-                 std::lerp(animationStartViewport_.x.maximum, fittedViewport_.x.maximum, progress)},
-                {std::lerp(animationStartViewport_.y.minimum, fittedViewport_.y.minimum, progress),
-                 std::lerp(animationStartViewport_.y.maximum, fittedViewport_.y.maximum, progress)}};
-            applyViewport();
             resampleCurve();
         });
         connect(animation_, &QVariantAnimation::finished, this, [this]
         {
             renderedCoefficients_ = coefficients_;
         });
+        connect(chart_, &QChart::plotAreaChanged, this, [this]
+        {
+            if (updatingViewport_) return;
+            applyViewport();
+            resampleCurve();
+        });
+        connect(chart_, &QGraphicsWidget::geometryChanged, this, &PolynomialChartView::updatePlotArea);
+        updatePlotArea();
         applyViewport();
     }
 
@@ -110,10 +114,6 @@ namespace PolynomialSolver::UI
         coefficients_ = std::move(coefficients);
         renderedCoefficients_ = coefficients_;
         roots_ = roots;
-        fittedViewport_ = PlotDataBuilder::fit(coefficients_, roots_);
-        visibleViewport_ = fittedViewport_;
-        chart_->setTitle({});
-        rootSeries_->replace(PlotDataBuilder::realRootMarkers(roots_));
         applyViewport();
         resampleCurve();
     }
@@ -128,11 +128,9 @@ namespace PolynomialSolver::UI
         }
         animation_->stop();
         animationStartCoefficients_ = renderedCoefficients_;
-        animationStartViewport_ = visibleViewport_;
         coefficients_ = std::move(coefficients);
         roots_.clear();
         rootSeries_->clear();
-        fittedViewport_ = PlotDataBuilder::fit(coefficients_, {});
         animation_->start();
     }
 
@@ -154,10 +152,7 @@ namespace PolynomialSolver::UI
         rootSeries_->clear();
         horizontalZeroSeries_->clear();
         verticalZeroSeries_->clear();
-        fittedViewport_ = {{-3.0, 3.0}, {-1.0, 1.0}};
-        visibleViewport_ = fittedViewport_;
         applyViewport();
-        chart_->setTitle(QStringLiteral("Введите корректные коэффициенты"));
     }
 
     void PolynomialChartView::resetView()
@@ -168,7 +163,8 @@ namespace PolynomialSolver::UI
         }
 
         stopAnimation();
-        visibleViewport_ = fittedViewport_;
+        center_ = QPointF(0, 0);
+        unitsPerPixel_ = initialUnitsPerPixel;
         applyViewport();
         resampleCurve();
     }
@@ -256,30 +252,16 @@ namespace PolynomialSolver::UI
 
         stopAnimation();
 
-        const QPointF position = event->position();
-        const double fractionX = std::clamp(
-            (position.x() - plot.left()) / plot.width(), 0.0, 1.0);
-        const double fractionY = std::clamp(
-            (position.y() - plot.top()) / plot.height(), 0.0, 1.0);
+        const QPointF position = chart_->mapFromScene(mapToScene(event->position().toPoint()));
+        const double fractionX = std::clamp((position.x() - plot.left()) / plot.width(), 0.0, 1.0);
+        const double fractionY = std::clamp((position.y() - plot.top()) / plot.height(), 0.0, 1.0);
         const double factor = std::pow(1.2, event->angleDelta().y() / 120.0);
-        const double newWidth = visibleViewport_.x.span() / factor;
-        const double newHeight = visibleViewport_.y.span() / factor;
-        const double anchorX = visibleViewport_.x.minimum +
-            fractionX * visibleViewport_.x.span();
-        const double anchorY = visibleViewport_.y.maximum -
-            fractionY * visibleViewport_.y.span();
-
-        visibleViewport_.x = {
-            anchorX - fractionX * newWidth,
-            anchorX + (1.0 - fractionX) * newWidth
-        };
-        visibleViewport_.y = {
-            anchorY - (1.0 - fractionY) * newHeight,
-            anchorY + fractionY * newHeight
-        };
-
-        applyViewport();
-        resampleCurve();
+        const double nextScale = unitsPerPixel_ / factor;
+        const QPointF anchor(std::lerp(visibleViewport_.x.minimum, visibleViewport_.x.maximum, fractionX),
+            std::lerp(visibleViewport_.y.maximum, visibleViewport_.y.minimum, fractionY));
+        const QPointF nextCenter(anchor.x() - (fractionX - 0.5) * plot.width() * nextScale,
+            anchor.y() + (fractionY - 0.5) * plot.height() * nextScale);
+        setView(nextCenter, nextScale);
         event->accept();
     }
 
@@ -313,16 +295,8 @@ namespace PolynomialSolver::UI
 
         if (plot.width() > 0.0 && plot.height() > 0.0)
         {
-            const double shiftX = -delta.x() * visibleViewport_.x.span() /
-                plot.width();
-            const double shiftY = delta.y() * visibleViewport_.y.span() /
-                plot.height();
-            visibleViewport_.x.minimum += shiftX;
-            visibleViewport_.x.maximum += shiftX;
-            visibleViewport_.y.minimum += shiftY;
-            visibleViewport_.y.maximum += shiftY;
-            applyViewport();
-            resampleCurve();
+            setView(QPointF(center_.x() - delta.x() * unitsPerPixel_,
+                center_.y() + delta.y() * unitsPerPixel_), unitsPerPixel_);
         }
 
         event->accept();
@@ -345,6 +319,7 @@ namespace PolynomialSolver::UI
     void PolynomialChartView::resizeEvent(QResizeEvent* event)
     {
         QChartView::resizeEvent(event);
+        updatePlotArea();
 
         if (!coefficients_.empty())
         {
@@ -353,20 +328,70 @@ namespace PolynomialSolver::UI
         }
     }
 
+    void PolynomialChartView::updatePlotArea()
+    {
+        // Reserve room for the longest %.5g label. Automatic margins can
+        // oscillate when a tick enters/leaves the visible range, distorting
+        // the camera and moving the point under the cursor during zoom.
+        constexpr double gap = 8.0;
+        const QFontMetricsF labels(xAxis_->labelsFont());
+        const double labelWidth = labels.horizontalAdvance(QStringLiteral("-8.8888e+308"));
+        const double left = labelWidth + QFontMetricsF(yAxis_->titleFont()).height() + 2 * gap;
+        const double right = labelWidth / 2 + gap;
+        const double top = labels.height() / 2 + gap;
+        const double bottom = labels.height() + QFontMetricsF(xAxis_->titleFont()).height() + 2 * gap;
+        const auto size = chart_->size();
+        if (size.isEmpty()) return;
+        const QRectF area(left, top, std::max(1.0, size.width() - left - right),
+            std::max(1.0, size.height() - top - bottom));
+        if (chart_->plotArea() != area) chart_->setPlotArea(area);
+    }
+
+    bool PolynomialChartView::setView(const QPointF center, const double unitsPerPixel)
+    {
+        const auto size = chart_->plotArea().isEmpty() ? QSizeF(viewport()->size()) : chart_->plotArea().size();
+        if (!PlotDataBuilder::equalScaleViewport(center, unitsPerPixel, size)) return false;
+        center_ = center;
+        unitsPerPixel_ = unitsPerPixel;
+        applyViewport();
+        resampleCurve();
+        return true;
+    }
+
     void PolynomialChartView::applyViewport()
     {
-        const auto updateAxis = [](QValueAxis* axis, const AxisRange range, const int pixelLength)
+        if (updatingViewport_) return;
+        QScopedValueRollback<bool> guard(updatingViewport_, true);
+        // Use the shared scale for both steps, keeping grid cells square even
+        // when the real plot dimensions contain fractional logical pixels.
+        const auto updateAxis = [](QValueAxis* axis, const AxisRange range, const double interval)
         {
-            const double interval = PlotDataBuilder::gridStep(range, pixelLength);
-            // Qt lays out dynamic ticks synchronously for both setters. Keep
-            // the old and new ranges sparse throughout expansion or shrinkage.
+            // Keep both intermediate axis layouts sparse, including large zoom changes.
             axis->setTickInterval(std::max(axis->tickInterval(), interval));
             axis->setRange(range.minimum, range.maximum);
             axis->setTickInterval(interval);
         };
-        updateAxis(xAxis_, visibleViewport_.x, std::max(1, width()));
-        updateAxis(yAxis_, visibleViewport_.y, std::max(1, height()));
+        const auto size = chart_->plotArea().isEmpty() ? QSizeF(viewport()->size()) : chart_->plotArea().size();
+        auto calculated = PlotDataBuilder::equalScaleViewport(center_, unitsPerPixel_, size);
+        // A resize at the floating-point limits can make the old scale
+        // unrepresentable. Adjust only as far as necessary to retain 1:1.
+        constexpr int maximumScaleAdjustments = 64;
+        for (int attempt = 0; !calculated && attempt < maximumScaleAdjustments; ++attempt)
+        {
+            const double maximum = std::numeric_limits<double>::max();
+            const double upperScale = std::min({maximum / size.width(), maximum / size.height(),
+                (maximum - std::abs(center_.x())) / (size.width() / 2),
+                (maximum - std::abs(center_.y())) / (size.height() / 2)});
+            unitsPerPixel_ = unitsPerPixel_ >= upperScale ? upperScale / 2 : unitsPerPixel_ * 2;
+            calculated = PlotDataBuilder::equalScaleViewport(center_, unitsPerPixel_, size);
+        }
+        if (!calculated) return;
+        visibleViewport_ = *calculated;
+        const double interval = PlotDataBuilder::gridStep({0.0, unitsPerPixel_}, 1);
+        updateAxis(xAxis_, visibleViewport_.x, interval);
+        updateAxis(yAxis_, visibleViewport_.y, interval);
         updateZeroAxes();
+        updateRootMarkers();
     }
 
     void PolynomialChartView::resampleCurve()
@@ -376,9 +401,9 @@ namespace PolynomialSolver::UI
             return;
         }
 
-        const PlotSegments segments = PlotDataBuilder::sample(
+        const PlotSegments segments = PlotDataBuilder::clipToYRange(PlotDataBuilder::sample(
             renderedCoefficients_, visibleViewport_.x,
-            std::max(1, qRound(viewport()->width() * devicePixelRatioF())));
+            std::max(1, qRound(viewport()->width() * devicePixelRatioF()))), visibleViewport_.y);
 
         while (curveSeries_.size() > static_cast<std::size_t>(segments.size()))
         {
@@ -422,6 +447,16 @@ namespace PolynomialSolver::UI
             verticalZeroSeries_->append(0.0, visibleViewport_.y.minimum);
             verticalZeroSeries_->append(0.0, visibleViewport_.y.maximum);
         }
+    }
+
+    void PolynomialChartView::updateRootMarkers()
+    {
+        QVector<QPointF> visible;
+        if (visibleViewport_.y.minimum <= 0 && visibleViewport_.y.maximum >= 0)
+            for (const auto& marker : PlotDataBuilder::realRootMarkers(roots_))
+                if (marker.x() >= visibleViewport_.x.minimum && marker.x() <= visibleViewport_.x.maximum)
+                    visible.push_back(marker);
+        rootSeries_->replace(visible);
     }
 
     void PolynomialChartView::clearCurveSeries()

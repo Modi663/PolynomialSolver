@@ -334,7 +334,7 @@
       </widget>
       <widget class="QGroupBox" name="graphGroup">
        <property name="title">
-        <string>График функции</string>
+        <string>График функции · 1:1</string>
        </property>
        <layout class="QVBoxLayout" name="graphLayout">
         <property name="spacing">
@@ -357,6 +357,7 @@
           </item>
           <item>
            <widget class="QPushButton" name="resetViewButton">
+            <property name="toolTip"><string>Вернуть начальный масштаб 1:1 и центр (0; 0)</string></property>
             <property name="text">
              <string>Сбросить вид</string>
             </property>
