@@ -19,6 +19,12 @@ add_core_test(CubicSolverTests CubicSolverTests.cpp)
 add_core_test(RootVerifierTests RootVerifierTests.cpp)
 add_core_test(PolynomialSolverServiceTests PolynomialSolverServiceTests.cpp)
 
+qt_add_executable(BisectionSettingsDialogTests BisectionSettingsDialogTests.cpp)
+target_link_libraries(BisectionSettingsDialogTests PRIVATE PolynomialSolver.UI Qt6::Test)
+add_test(NAME BisectionSettingsDialogTests COMMAND BisectionSettingsDialogTests -o -,txt)
+set_tests_properties(BisectionSettingsDialogTests PROPERTIES
+    ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
+
 qt_add_executable(PlotDataBuilderTests PlotDataBuilderTests.cpp)
 target_link_libraries(PlotDataBuilderTests
     PRIVATE

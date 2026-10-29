@@ -1,4 +1,7 @@
 add_library(PolynomialSolver.UI STATIC
+    BisectionSettingsDialog.cpp
+    BisectionSettingsDialog.h
+    InputValidation.h
     CoefficientParser.cpp
     MainWindow.cpp
     MainWindow.ui
