@@ -138,6 +138,7 @@ namespace PolynomialSolver::UI
     {
         animation_->stop();
         renderedCoefficients_ = coefficients_;
+        resampleCurve();
     }
 
     void PolynomialChartView::clearGraph()

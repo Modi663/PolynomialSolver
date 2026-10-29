@@ -14,6 +14,29 @@ class PolynomialChartViewTests final : public QObject
     Q_OBJECT
 
 private slots:
+    void clickDuringAnimationDisplaysLatestPolynomial()
+    {
+        PolynomialChartView view;
+        view.resize(720, 420);
+        view.show();
+        QTest::qWait(20);
+        view.setPolynomial({1, 0}, {});
+        view.updatePolynomial({3, 0});
+        QTest::qWait(80);
+        QTest::mouseClick(view.QChartView::viewport(), Qt::LeftButton,
+            Qt::NoModifier, QPoint(250, 200));
+        QTest::qWait(250);
+        bool foundCurve = false;
+        for (auto* series : view.chart()->series())
+            if (auto* curve = qobject_cast<QLineSeries*>(series); curve && curve->count() >= 400)
+            {
+                foundCurve = true;
+                for (const auto& point : curve->points())
+                    QVERIFY(std::abs(point.y() - 3 * point.x()) < 1e-10);
+            }
+        QVERIFY(foundCurve);
+    }
+
     void animatesExistingSeriesAndFinishesAtLatestPolynomial()
     {
         PolynomialChartView view;
