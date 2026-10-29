@@ -64,6 +64,19 @@ private:
         });
     }
 private slots:
+    void iconsAndHistoryControlsAreInTheirSections()
+    {
+        MainWindow window;
+        auto* settings = window.findChild<QPushButton*>("settingsButton");
+        QVERIFY(settings->text().isEmpty());
+        QVERIFY(!settings->icon().isNull());
+        QVERIFY(!settings->icon().pixmap(24, 24).isNull());
+        QVERIFY(!window.windowIcon().isNull());
+        QVERIFY(!window.windowIcon().pixmap(32, 32).isNull());
+        auto* clear = window.findChild<QPushButton*>("clearButton");
+        QVERIFY(window.findChild<QGroupBox*>("resultGroup")->isAncestorOf(clear));
+        QVERIFY(!window.findChild<QGroupBox*>("equationGroup")->isAncestorOf(clear));
+    }
     void keepsNativeLayoutAndPreviewsBeforeSolving()
     {
         MainWindow window;
@@ -130,6 +143,7 @@ private slots:
         QVERIFY(text.contains("x1 = 2"));
         QVERIFY(text.contains("x1 = 3"));
         QCOMPARE(history(window)->extraSelections().size(), 1);
+        QCOMPARE(history(window)->extraSelections().front().format.background().style(), Qt::NoBrush);
         const auto selected = history(window)->extraSelections().front().cursor.selectedText();
         QVERIFY(selected.contains("x1 = 3"));
         QVERIFY(!selected.contains("x1 = 2"));
@@ -139,6 +153,8 @@ private slots:
         QVERIFY(history(window)->toPlainText().isEmpty());
         QVERIFY(history(window)->extraSelections().isEmpty());
         QCOMPARE(coefficient(window, 0)->text(), QStringLiteral("-3"));
+        clickSolve(window);
+        QVERIFY(history(window)->toPlainText().startsWith(QStringLiteral("Расчёт №1")));
     }
     void returnSolvesAndCoefficientsSurviveDegreeChanges()
     {

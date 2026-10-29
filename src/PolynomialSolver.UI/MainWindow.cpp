@@ -4,6 +4,7 @@
 #include "CoefficientParser.h"
 #include "InputValidation.h"
 #include "PolynomialChartView.h"
+#include "UiIcons.h"
 #include "ui_MainWindow.h"
 
 #include <QButtonGroup>
@@ -71,6 +72,12 @@ namespace PolynomialSolver::UI
     void MainWindow::buildInterface()
     {
         ui_->setupUi(this);
+        setWindowIcon(applicationIcon());
+        ui_->settingsButton->setIcon(settingsIcon(palette().color(QPalette::ButtonText)));
+        ui_->settingsButton->setIconSize(QSize(20, 20));
+        ui_->settingsButton->setFixedSize(30, 30);
+        ui_->settingsButton->setToolTip(QStringLiteral("Настройки бисекции"));
+        ui_->settingsButton->setAccessibleName(QStringLiteral("Настройки бисекции"));
         settingsDialog_ = new BisectionSettingsDialog(this);
         ui_->degreeGroup->setExclusive(true);
         for (int degree = 1; degree <= 5; ++degree)
@@ -78,7 +85,8 @@ namespace PolynomialSolver::UI
                 QStringLiteral("degreeButton%1").arg(degree)), degree);
         ui_->equationLayout->setAlignment(Qt::AlignHCenter);
         ui_->inputErrorIcon->setPixmap(style()->standardIcon(QStyle::SP_MessageBoxWarning).pixmap(16, 16));
-        ui_->inputErrorLabel->setStyleSheet(QStringLiteral("color: #b91c1c;"));
+        ui_->inputErrorLabel->setStyleSheet(palette().color(QPalette::Window).lightness() < 128
+            ? QStringLiteral("color: #ff6b6b;") : QStringLiteral("color: #b91c1c;"));
         ui_->resultBox->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
         ui_->resultBox->setPlaceholderText(QStringLiteral("Здесь появится история расчётов."));
         ui_->clearButton->setEnabled(false);
@@ -115,7 +123,7 @@ namespace PolynomialSolver::UI
         if (formulaFont.pointSizeF() > 0) formulaFont.setPointSizeF(formulaFont.pointSizeF() + 2);
         for (int power = selectedDegree_; power >= 0; --power)
         {
-            auto* input = new QLineEdit;
+            auto* input = new ValidatedLineEdit;
             input->setObjectName(QStringLiteral("coefficientPower%1").arg(power));
             input->setAccessibleName(QStringLiteral("Коэффициент при x в степени %1").arg(power));
             input->setAlignment(Qt::AlignCenter);
@@ -217,10 +225,7 @@ namespace PolynomialSolver::UI
         QTextEdit::ExtraSelection latest;
         latest.cursor = cursor;
         latest.cursor.setPosition(start, QTextCursor::KeepAnchor);
-        QColor background = palette().highlight().color();
-        background.setAlpha(40);
-        latest.format.setBackground(background);
-        latest.format.setProperty(QTextFormat::FullWidthSelection, true);
+        latest.format.setFontWeight(QFont::DemiBold);
         ui_->resultBox->setExtraSelections({latest});
         ui_->resultBox->setTextCursor(cursor);
         ui_->resultBox->ensureCursorVisible();
@@ -300,6 +305,7 @@ namespace PolynomialSolver::UI
 
     void MainWindow::clear()
     {
+        calculationCount_ = 0;
         ui_->resultBox->clear();
         ui_->resultBox->setExtraSelections({});
         ui_->clearButton->setEnabled(false);

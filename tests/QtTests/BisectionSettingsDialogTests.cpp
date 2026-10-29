@@ -21,6 +21,9 @@ private slots:
         QVERIFY(dialog.findChild<QLineEdit*>("leftBoundInput")->text().isEmpty());
         QVERIFY(dialog.findChild<QLineEdit*>("rightBoundInput")->text().isEmpty());
         QVERIFY(!dialog.settings());
+        QVERIFY(!dialog.findChild<QDialogButtonBox*>()->button(QDialogButtonBox::Apply)->isEnabled());
+        QVERIFY(dialog.findChild<QLineEdit*>("leftBoundInput")->property("invalid").toBool());
+        QVERIFY(!dialog.findChild<QLabel*>("settingsErrorLabel")->text().isEmpty());
         QVERIFY(!dialog.validateInputs());
         QVERIFY(dialog.findChild<QLineEdit*>("leftBoundInput")->property("invalid").toBool());
         QVERIFY(dialog.findChild<QLineEdit*>("rightBoundInput")->property("invalid").toBool());
@@ -90,6 +93,28 @@ private slots:
         auto* step = dialog.findChild<QLineEdit*>("scanStepInput");
         step->setText("0.00000001");
         QVERIFY(step->property("invalid").toBool());
+    }
+
+    void validationPreservesNativeFieldGeometry()
+    {
+        BisectionSettingsDialog dialog;
+        dialog.show();
+        auto* left = dialog.findChild<QLineEdit*>("leftBoundInput");
+        auto* right = dialog.findChild<QLineEdit*>("rightBoundInput");
+        left->setText("0");
+        right->setText("2");
+        QTest::qWait(20);
+        const auto fieldSize = left->size();
+        const auto fieldHint = left->sizeHint();
+        const auto dialogSize = dialog.size();
+        left->clear();
+        right->clear();
+        QTest::qWait(20);
+        QCOMPARE(left->sizeHint(), fieldHint);
+        QCOMPARE(left->size(), fieldSize);
+        QCOMPARE(dialog.size(), dialogSize);
+        QVERIFY(left->styleSheet().isEmpty());
+        QVERIFY(!dialog.findChild<QDialogButtonBox*>()->button(QDialogButtonBox::Apply)->isEnabled());
     }
 };
 

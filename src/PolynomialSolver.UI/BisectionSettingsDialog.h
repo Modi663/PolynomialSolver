@@ -9,6 +9,7 @@ class QCheckBox;
 class QLabel;
 class QLineEdit;
 class QSpinBox;
+class QPushButton;
 
 namespace PolynomialSolver::UI
 {
@@ -36,8 +37,8 @@ namespace PolynomialSolver::UI
         QLineEdit* right_{};
         QLineEdit* step_{};
         QLabel* stepLabel_{};
-        QLabel* scanHint_{};
         QLabel* error_{};
+        QPushButton* applyButton_{};
         QSpinBox* precision_{};
         QCheckBox* findAll_{};
         std::optional<BisectionSettings> settings_;

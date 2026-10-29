@@ -3,6 +3,7 @@
 #include "BisectionSolver.h"
 #include "CoefficientParser.h"
 #include "InputValidation.h"
+#include "UiIcons.h"
 
 #include <QCheckBox>
 #include <QDialogButtonBox>
@@ -22,13 +23,14 @@ namespace PolynomialSolver::UI
     {
         setObjectName(QStringLiteral("bisectionSettingsDialog"));
         setWindowTitle(QStringLiteral("Настройки бисекции"));
+        setWindowIcon(applicationIcon());
         setModal(true);
         setMinimumWidth(440);
         auto* layout = new QVBoxLayout(this);
         auto* form = new QFormLayout;
-        left_ = new QLineEdit(this);
-        right_ = new QLineEdit(this);
-        step_ = new QLineEdit(this);
+        left_ = new ValidatedLineEdit(this);
+        right_ = new ValidatedLineEdit(this);
+        step_ = new ValidatedLineEdit(this);
         left_->setObjectName(QStringLiteral("leftBoundInput"));
         right_->setObjectName(QStringLiteral("rightBoundInput"));
         step_->setObjectName(QStringLiteral("scanStepInput"));
@@ -47,18 +49,16 @@ namespace PolynomialSolver::UI
         stepLabel_->setBuddy(step_);
         form->addRow(stepLabel_, step_);
         layout->addLayout(form);
-        scanHint_ = new QLabel(QStringLiteral(
-            "Сначала выполняется поиск с заданным шагом, затем бисекция. "
-            "Кратные корни между узлами и несколько корней внутри шага могут быть пропущены."), this);
-        scanHint_->setWordWrap(true);
-        layout->addWidget(scanHint_);
         error_ = new QLabel(this);
         error_->setObjectName(QStringLiteral("settingsErrorLabel"));
         error_->setWordWrap(true);
-        error_->setStyleSheet(QStringLiteral("color: #b91c1c;"));
+        error_->setStyleSheet(palette().color(QPalette::Window).lightness() < 128
+            ? QStringLiteral("color: #ff6b6b;") : QStringLiteral("color: #b91c1c;"));
+        error_->setFixedHeight(error_->fontMetrics().lineSpacing() * 3);
         layout->addWidget(error_);
         auto* buttons = new QDialogButtonBox(QDialogButtonBox::Apply | QDialogButtonBox::Cancel, this);
-        buttons->button(QDialogButtonBox::Apply)->setText(QStringLiteral("Применить"));
+        applyButton_ = buttons->button(QDialogButtonBox::Apply);
+        applyButton_->setText(QStringLiteral("Применить"));
         buttons->button(QDialogButtonBox::Cancel)->setText(QStringLiteral("Отмена"));
         buttons->button(QDialogButtonBox::Apply)->setDefault(true);
         layout->addWidget(buttons);
@@ -87,17 +87,14 @@ namespace PolynomialSolver::UI
         step_->setText(savedText_[2]);
         precision_->setValue(settings_ ? settings_->decimalPlaces : 6);
         findAll_->setChecked(settings_ && settings_->findAll);
-        for (auto* input : {left_, right_, step_}) markInvalid(input, false);
-        error_->clear();
-        error_->hide();
         updateStepVisibility();
+        validateInputs();
     }
 
     void BisectionSettingsDialog::updateStepVisibility()
     {
         step_->setVisible(findAll_->isChecked());
         stepLabel_->setVisible(findAll_->isChecked());
-        scanHint_->setVisible(findAll_->isChecked());
         adjustSize();
     }
 
@@ -109,8 +106,9 @@ namespace PolynomialSolver::UI
         markInvalid(left_, !left);
         markInvalid(right_, !right);
         markInvalid(step_, false);
-        if (!left) errors << QStringLiteral("Левая граница: введите конечное число.");
-        if (!right) errors << QStringLiteral("Правая граница: введите конечное число.");
+        if (!left && !right) errors << QStringLiteral("Введите числовые значения обеих границ.");
+        else if (!left) errors << QStringLiteral("Левая граница: введите конечное число.");
+        else if (!right) errors << QStringLiteral("Правая граница: введите конечное число.");
         if (left && right && *left >= *right)
         {
             markInvalid(left_, true);
@@ -136,12 +134,12 @@ namespace PolynomialSolver::UI
                     > Core::BisectionSolver::maximumScanIntervals)
                 {
                     markInvalid(step_, true);
-                    errors << QStringLiteral("Увеличьте шаг: допускается не более 100 000 участков.");
+                    errors << QStringLiteral("Слишком много участков (максимум 100 000). Увеличьте шаг.");
                 }
             }
         }
         error_->setText(errors.join('\n'));
-        error_->setVisible(!errors.isEmpty());
+        applyButton_->setEnabled(errors.isEmpty());
         return errors.isEmpty();
     }
 

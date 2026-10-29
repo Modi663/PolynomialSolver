@@ -2,6 +2,9 @@ add_library(PolynomialSolver.UI STATIC
     BisectionSettingsDialog.cpp
     BisectionSettingsDialog.h
     InputValidation.h
+    UiIcons.cpp
+    UiIcons.h
+    resources.qrc
     CoefficientParser.cpp
     MainWindow.cpp
     MainWindow.ui
@@ -33,7 +36,6 @@ endif()
 
 qt_add_executable(PolynomialSolver WIN32
     main.cpp
-    resources.qrc
     windows-icon.rc
 )
 

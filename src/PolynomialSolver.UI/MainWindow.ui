@@ -148,7 +148,7 @@
          </item>
          <item>
           <widget class="QPushButton" name="settingsButton">
-           <property name="text"><string>Настройки бисекции…</string></property>
+           <property name="text"><string/></property>
           </widget>
          </item>
          <item>
@@ -262,19 +262,6 @@
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="clearButton">
-           <property name="minimumSize">
-            <size>
-             <width>130</width>
-             <height>0</height>
-            </size>
-           </property>
-           <property name="text">
-            <string>Очистить историю</string>
-           </property>
-          </widget>
-         </item>
-         <item>
           <spacer name="actionRightSpacer">
            <property name="orientation">
             <enum>Qt::Orientation::Horizontal</enum>
@@ -305,6 +292,21 @@
         <string>История расчётов</string>
        </property>
        <layout class="QVBoxLayout" name="resultLayout">
+        <item>
+         <layout class="QHBoxLayout" name="historyHeader">
+          <item>
+           <spacer name="historyHeaderSpacer">
+            <property name="orientation"><enum>Qt::Horizontal</enum></property>
+            <property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="clearButton">
+            <property name="text"><string>Очистить историю</string></property>
+           </widget>
+          </item>
+         </layout>
+        </item>
         <item>
          <widget class="QPlainTextEdit" name="resultBox">
           <property name="readOnly">
