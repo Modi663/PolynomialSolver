@@ -258,6 +258,48 @@ private slots:
             std::runtime_error);
     }
 
+    void bisectsOneRootWithoutScanning()
+    {
+        const auto solved = PolynomialSolverService{}.solveOneNumerically(
+            {1, 0, -2}, 0, 2, 8);
+        QCOMPARE(solved.result.method, SolutionMethod::Numerical);
+        QCOMPARE(solved.result.roots.size(), std::size_t{1});
+        QVERIFY(std::abs(solved.result.roots.front().real() - std::sqrt(2.0)) <= 5e-9);
+        QCOMPARE(solved.residuals.size(), std::size_t{1});
+        // There are two roots inside, but no bracket on the entire interval.
+        QVERIFY_EXCEPTION_THROWN(
+            PolynomialSolverService{}.solveOneNumerically({1, -3, 2}, 0, 3),
+            std::invalid_argument);
+    }
+
+    void oneRootIncludesEitherBoundary()
+    {
+        const PolynomialSolverService service;
+        QCOMPARE(service.solveOneNumerically({1, -1}, 1, 2).result.roots.front().real(), 1.0);
+        QCOMPARE(service.solveOneNumerically({1, -2}, 1, 2).result.roots.front().real(), 2.0);
+    }
+
+    void oneRootValidatesArguments()
+    {
+        const PolynomialSolverService service;
+        QVERIFY_EXCEPTION_THROWN(service.solveOneNumerically({1}, 0, 1), std::invalid_argument);
+        QVERIFY_EXCEPTION_THROWN(service.solveOneNumerically({1, -1}, 1, 1), std::invalid_argument);
+        QVERIFY_EXCEPTION_THROWN(service.solveOneNumerically({1, -1}, 2, 1), std::invalid_argument);
+        QVERIFY_EXCEPTION_THROWN(service.solveOneNumerically({1, -1}, 0, 2, 16), std::invalid_argument);
+        QVERIFY_EXCEPTION_THROWN(service.solveOneNumerically({1, -1}, 0,
+            std::numeric_limits<double>::infinity()), std::invalid_argument);
+    }
+
+    void rejectsExcessiveScanningBeforeSearching()
+    {
+        QVERIFY_EXCEPTION_THROWN(
+            PolynomialSolverService{}.solveNumerically({1, -1}, 0, 10, 0.000001),
+            std::invalid_argument);
+        // The allowed boundary is accepted without accumulated step drift.
+        const auto solved = PolynomialSolverService{}.solveNumerically({1, -1}, 0, 1, 0.00001);
+        QCOMPARE(solved.result.roots.back().real(), 1.0);
+    }
+
 };
 
 QTEST_APPLESS_MAIN(PolynomialSolverServiceTests)

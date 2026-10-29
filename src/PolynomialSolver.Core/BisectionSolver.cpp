@@ -23,6 +23,26 @@ namespace PolynomialSolver::Core
 
         return value.real();
     }
+
+    void validateInterval(const Polynomial& polynomial, double left, double right, int decimalPlaces)
+    {
+        if (polynomial.degree() < 1 || polynomial.degree() > 5)
+            throw std::invalid_argument("Метод бисекции поддерживает степени от 1 до 5.");
+        if (decimalPlaces < 0 || decimalPlaces > 15)
+            throw std::invalid_argument("Количество знаков после запятой должно быть от 0 до 15.");
+        if (!std::isfinite(left) || !std::isfinite(right))
+            throw std::invalid_argument("Границы интервала должны быть конечными числами.");
+        if (left >= right)
+            throw std::invalid_argument("Левая граница должна быть меньше правой.");
+    }
+    }
+
+    SolveResult BisectionSolver::solveOne(
+        const Polynomial& polynomial, double left, double right, int decimalPlaces)
+    {
+        validateInterval(polynomial, left, right, decimalPlaces);
+        const double root = bisect(polynomial, left, right, 0.5 * std::pow(10.0, -decimalPlaces));
+        return {{{root, 0.0}}, SolutionMethod::Numerical};
     }
 
     SolveResult BisectionSolver::solve(
@@ -32,38 +52,20 @@ namespace PolynomialSolver::Core
         double step,
         int decimalPlaces)
     {
-        if (polynomial.degree() < 1 || polynomial.degree() > 5)
+        validateInterval(polynomial, left, right, decimalPlaces);
+        if (!std::isfinite(step) || step <= 0.0)
         {
             throw std::invalid_argument(
-                "Метод бисекции поддерживает степени от 1 до 5.");
+                "Шаг должен быть конечным числом больше нуля.");
         }
 
-        if (decimalPlaces < 0 || decimalPlaces > 15)
-        {
-            throw std::invalid_argument(
-                "Количество знаков после запятой "
-                "должно быть от 0 до 15.");
-        }
+        if (left + step == left)
+            throw std::runtime_error("Шаг слишком мал для данного диапазона.");
 
-        if (!std::isfinite(left)
-            || !std::isfinite(right)
-            || !std::isfinite(step))
-        {
-            throw std::invalid_argument(
-                "Границы диапазона и шаг должны быть конечными числами.");
-        }
-
-        if (left >= right)
-        {
-            throw std::invalid_argument(
-                "Левая граница должна быть меньше правой.");
-        }
-
-        if (step <= 0.0)
-        {
-            throw std::invalid_argument(
-                "Шаг должен быть больше нуля.");
-        }
+        const long double count = std::ceil(
+            (static_cast<long double>(right) - left) / step);
+        if (count > maximumScanIntervals)
+            throw std::invalid_argument("Слишком много шагов поиска (максимум 100 000). Увеличьте шаг.");
 
         const double epsilon =
             0.5 * std::pow(10.0, -decimalPlaces);
@@ -96,21 +98,13 @@ namespace PolynomialSolver::Core
         double x1 = left;
         double y1 = valueAt(polynomial, x1);
 
-        while (x1 < right)
+        const auto intervalCount = static_cast<std::size_t>(std::ceil(
+            (static_cast<long double>(right) - left) / step));
+        for (std::size_t index = 1; index <= intervalCount; ++index)
         {
-            double x2 = x1 + step;
-
-            if (!std::isfinite(x2))
-            {
-                throw std::overflow_error(
-                    "При вычислении следующей точки "
-                    "произошло переполнение.");
-            }
-
-            if (x2 > right)
-            {
-                x2 = right;
-            }
+            const double x2 = index == intervalCount ? right : static_cast<double>(
+                std::min(static_cast<long double>(right),
+                    static_cast<long double>(left) + index * static_cast<long double>(step)));
 
             if (x2 == x1)
             {
@@ -180,7 +174,8 @@ namespace PolynomialSolver::Core
         if (std::signbit(leftValue) == std::signbit(rightValue))
         {
             throw std::invalid_argument(
-                "На концах интервала должны быть разные знаки.");
+                "Для одного корня выберите интервал со сменой знака P(x) на концах "
+                "или с корнем на границе. Одинаковые знаки не означают отсутствия корней внутри.");
         }
 
         for (int iteration = 0; iteration < 4096; ++iteration)

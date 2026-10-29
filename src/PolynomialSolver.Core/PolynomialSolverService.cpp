@@ -13,6 +13,19 @@
 
 namespace PolynomialSolver::Core
 {
+    SolvedPolynomial PolynomialSolverService::solveOneNumerically(
+        std::vector<double> coefficients, double left, double right, int decimalPlaces) const
+    {
+        if (coefficients.size() < 2 || coefficients.size() > 6)
+            throw std::invalid_argument("Количество коэффициентов должно быть от 2 до 6.");
+        const Polynomial polynomial(coefficients);
+        SolveResult result = BisectionSolver::solveOne(polynomial, left, right, decimalPlaces);
+        const double residual = RootVerifier::residual(polynomial, result.roots.front());
+        if (!std::isfinite(residual))
+            throw std::overflow_error("Невязка корня вышла за пределы типа double.");
+        return {std::move(coefficients), std::move(result), {residual}};
+    }
+
     SolvedPolynomial PolynomialSolverService::solve(
         std::vector<double> coefficients) const
     {

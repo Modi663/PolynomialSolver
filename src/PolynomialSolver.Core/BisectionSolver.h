@@ -10,6 +10,14 @@ namespace PolynomialSolver::Core
     class BisectionSolver
     {
     public:
+        static constexpr std::size_t maximumScanIntervals = 100000;
+
+        [[nodiscard]] static SolveResult solveOne(
+            const Polynomial& polynomial,
+            double left,
+            double right,
+            int decimalPlaces = 6);
+
         [[nodiscard]] static SolveResult solve(
             const Polynomial& polynomial,
             double left,

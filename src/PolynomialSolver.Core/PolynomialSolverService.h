@@ -19,6 +19,12 @@ namespace PolynomialSolver::Core
         [[nodiscard]] SolvedPolynomial solve(
             std::vector<double> coefficients) const;
 
+        [[nodiscard]] SolvedPolynomial solveOneNumerically(
+            std::vector<double> coefficients,
+            double left,
+            double right,
+            int decimalPlaces = 6) const;
+
         [[nodiscard]] SolvedPolynomial solveNumerically(
             std::vector<double> coefficients,
             double left,
