@@ -39,6 +39,9 @@ qt_add_executable(PolynomialSolver WIN32
     windows-icon.rc
 )
 
+set_source_files_properties(windows-icon.rc PROPERTIES
+    OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/app.ico")
+
 target_link_libraries(PolynomialSolver PRIVATE PolynomialSolver.UI)
 
 install(TARGETS PolynomialSolver RUNTIME DESTINATION bin)

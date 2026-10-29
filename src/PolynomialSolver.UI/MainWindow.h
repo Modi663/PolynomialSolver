@@ -25,6 +25,7 @@ namespace PolynomialSolver::UI
         BisectionSettingsDialog* settingsDialog_{};
         int selectedDegree_{1};
         int calculationCount_{};
+        int latestResultStart_{};
         std::array<QString, 6> valuesByPower_{};
         std::array<bool, 6> coefficientEdited_{};
         std::vector<QLineEdit*> coefficientInputs_;

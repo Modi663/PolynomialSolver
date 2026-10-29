@@ -218,15 +218,24 @@ namespace PolynomialSolver::UI
     void MainWindow::appendResult(const QStringList& lines)
     {
         QTextCursor cursor(ui_->resultBox->document());
+        QTextCharFormat normal;
+        normal.setFontWeight(QFont::Normal);
+        if (!ui_->resultBox->document()->isEmpty())
+        {
+            cursor.setPosition(latestResultStart_);
+            cursor.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+            cursor.mergeCharFormat(normal);
+        }
         cursor.movePosition(QTextCursor::End);
+        cursor.setCharFormat(normal);
         if (!ui_->resultBox->document()->isEmpty()) cursor.insertText(QStringLiteral("\n\n"));
-        const int start = cursor.position();
+        latestResultStart_ = cursor.position();
         cursor.insertText(lines.join('\n'));
-        QTextEdit::ExtraSelection latest;
-        latest.cursor = cursor;
-        latest.cursor.setPosition(start, QTextCursor::KeepAnchor);
-        latest.format.setFontWeight(QFont::DemiBold);
-        ui_->resultBox->setExtraSelections({latest});
+        QTextCursor latest(cursor);
+        latest.setPosition(latestResultStart_, QTextCursor::KeepAnchor);
+        QTextCharFormat emphasis;
+        emphasis.setFontWeight(QFont::DemiBold);
+        latest.mergeCharFormat(emphasis);
         ui_->resultBox->setTextCursor(cursor);
         ui_->resultBox->ensureCursorVisible();
         ui_->clearButton->setEnabled(true);
@@ -306,6 +315,7 @@ namespace PolynomialSolver::UI
     void MainWindow::clear()
     {
         calculationCount_ = 0;
+        latestResultStart_ = 0;
         ui_->resultBox->clear();
         ui_->resultBox->setExtraSelections({});
         ui_->clearButton->setEnabled(false);

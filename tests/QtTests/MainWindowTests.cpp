@@ -34,6 +34,11 @@ private:
     {
         return window.findChild<QPlainTextEdit*>("resultBox");
     }
+    static QString latestResult(MainWindow& window)
+    {
+        const QString text = history(window)->toPlainText();
+        return text.mid(text.lastIndexOf(QStringLiteral("Расчёт №")));
+    }
     static void clickSolve(MainWindow& window)
     {
         window.findChild<QPushButton*>("solveButton")->click();
@@ -64,6 +69,35 @@ private:
         });
     }
 private slots:
+    void latestEntryUsesActualTextFormattingWithoutBackground()
+    {
+        MainWindow window;
+        coefficient(window, 0)->setText("-2");
+        clickSolve(window);
+        auto first = history(window)->document()->find(QStringLiteral("Расчёт №1"));
+        QCOMPARE(first.charFormat().fontWeight(), int(QFont::DemiBold));
+        coefficient(window, 0)->setText("-3");
+        clickSolve(window);
+        first = history(window)->document()->find(QStringLiteral("Расчёт №1"));
+        const auto latest = history(window)->document()->find(QStringLiteral("Расчёт №2"));
+        QCOMPARE(first.charFormat().fontWeight(), int(QFont::Normal));
+        QCOMPARE(latest.charFormat().fontWeight(), int(QFont::DemiBold));
+        QCOMPARE(latest.charFormat().background().style(), Qt::NoBrush);
+        QVERIFY(history(window)->extraSelections().isEmpty());
+    }
+    void applicationIconIsNotTheGenericWindowPlaceholder()
+    {
+        MainWindow window;
+        const QImage image = window.windowIcon().pixmap(32, 32).toImage();
+        bool hasColor = false;
+        for (int y = 0; y < image.height() && !hasColor; ++y)
+            for (int x = 0; x < image.width() && !hasColor; ++x)
+            {
+                const auto color = image.pixelColor(x, y);
+                hasColor = color.alpha() > 200 && color.blue() - color.red() > 40;
+            }
+        QVERIFY(hasColor);
+    }
     void iconsAndHistoryControlsAreInTheirSections()
     {
         MainWindow window;
@@ -142,9 +176,8 @@ private slots:
         const auto text = history(window)->toPlainText();
         QVERIFY(text.contains("x1 = 2"));
         QVERIFY(text.contains("x1 = 3"));
-        QCOMPARE(history(window)->extraSelections().size(), 1);
-        QCOMPARE(history(window)->extraSelections().front().format.background().style(), Qt::NoBrush);
-        const auto selected = history(window)->extraSelections().front().cursor.selectedText();
+        QVERIFY(history(window)->extraSelections().isEmpty());
+        const auto selected = latestResult(window);
         QVERIFY(selected.contains("x1 = 3"));
         QVERIFY(!selected.contains("x1 = 2"));
         window.findChild<QRadioButton*>("degreeButton3")->click();
@@ -187,7 +220,7 @@ private slots:
         QVERIFY(history(window)->toPlainText().contains("x1 = 1.000000"));
         configure(window, "0", "3", true, "0,25");
         clickSolve(window);
-        const auto selected = history(window)->extraSelections().front().cursor.selectedText();
+        const auto selected = latestResult(window);
         QVERIFY(selected.contains("x1 = 1.000000"));
         QVERIFY(selected.contains("x2 = 2.000000"));
         QCOMPARE(window.findChild<PolynomialChartView*>()->rootMarkerCount(), 2);
@@ -214,7 +247,7 @@ private slots:
         QVERIFY(text.contains(QStringLiteral("Ошибка")));
         configure(window, "0", "3", true);
         clickSolve(window);
-        const auto selected = history(window)->extraSelections().front().cursor.selectedText();
+        const auto selected = latestResult(window);
         QVERIFY(selected.contains(QStringLiteral("Метод: аналитический")));
         QVERIFY(selected.contains(QStringLiteral("Метод: бисекция")));
         QVERIFY(!selected.contains(QStringLiteral("Ошибка")));
