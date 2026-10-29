@@ -56,7 +56,7 @@ target_link_libraries(MainWindowTests
         Qt6::Test
         Qt6::Widgets
 )
-add_test(NAME MainWindowTests COMMAND MainWindowTests)
+add_test(NAME MainWindowTests COMMAND MainWindowTests -o -,txt)
 set_tests_properties(MainWindowTests PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     ENVIRONMENT_MODIFICATION

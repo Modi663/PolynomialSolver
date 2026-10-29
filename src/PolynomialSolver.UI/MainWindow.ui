@@ -132,109 +132,35 @@
         </layout>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="methodLayout" stretch="0,0,0,0,0">
-         <property name="topMargin">
-          <number>0</number>
-         </property>
+        <layout class="QHBoxLayout" name="methodLayout">
          <item>
           <widget class="QLabel" name="methodLabel">
-           <property name="text">
-            <string>Метод:</string>
-           </property>
+           <property name="text"><string>Метод:</string></property>
           </widget>
          </item>
          <item>
           <widget class="QComboBox" name="methodComboBox">
-           <property name="minimumSize">
-            <size>
-             <width>120</width>
-             <height>0</height>
-            </size>
-           </property>
-           <property name="editable">
-            <bool>false</bool>
-           </property>
-           <item>
-            <property name="text">
-             <string>Аналитический</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Бисекция</string>
-            </property>
-           </item>
+           <property name="minimumSize"><size><width>140</width><height>0</height></size></property>
+           <item><property name="text"><string>Аналитический</string></property></item>
+           <item><property name="text"><string>Бисекция</string></property></item>
+           <item><property name="text"><string>Оба метода</string></property></item>
           </widget>
          </item>
          <item>
-          <widget class="QLabel" name="precisionLabel">
-           <property name="text">
-            <string>Знаков после запятой:</string>
-           </property>
+          <widget class="QPushButton" name="settingsButton">
+           <property name="text"><string>Настройки бисекции…</string></property>
           </widget>
          </item>
          <item>
-          <widget class="QSpinBox" name="decimalPlacesSpinBox">
-           <property name="minimum">
-            <number>0</number>
-           </property>
-           <property name="maximum">
-            <number>15</number>
-           </property>
-           <property name="value">
-            <number>6</number>
-           </property>
+          <widget class="QLabel" name="bisectionSummary">
+           <property name="text"><string>Интервал ещё не задан</string></property>
           </widget>
          </item>
          <item>
-          <spacer name="horizontalSpacer">
-           <property name="orientation">
-            <enum>Qt::Orientation::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
+          <spacer name="methodSpacer">
+           <property name="orientation"><enum>Qt::Horizontal</enum></property>
+           <property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property>
           </spacer>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="numericalRangeLayout">
-         <item>
-          <widget class="QLabel" name="leftBoundInputLabel">
-           <property name="text"><string>Левая граница:</string></property>
-           <property name="buddy"><cstring>leftBoundInput</cstring></property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="leftBoundInput">
-           <property name="text"><string>-10</string></property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLabel" name="rightBoundInputLabel">
-           <property name="text"><string>Правая граница:</string></property>
-           <property name="buddy"><cstring>rightBoundInput</cstring></property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="rightBoundInput">
-           <property name="text"><string>10</string></property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLabel" name="scanStepInputLabel">
-           <property name="text"><string>Шаг:</string></property>
-           <property name="buddy"><cstring>scanStepInput</cstring></property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="scanStepInput">
-           <property name="text"><string>0.25</string></property>
-          </widget>
          </item>
         </layout>
        </item>
@@ -344,7 +270,7 @@
             </size>
            </property>
            <property name="text">
-            <string>Очистить</string>
+            <string>Очистить историю</string>
            </property>
           </widget>
          </item>
@@ -376,7 +302,7 @@
       </property>
       <widget class="QGroupBox" name="resultGroup">
        <property name="title">
-        <string>Результат</string>
+        <string>История расчётов</string>
        </property>
        <layout class="QVBoxLayout" name="resultLayout">
         <item>
