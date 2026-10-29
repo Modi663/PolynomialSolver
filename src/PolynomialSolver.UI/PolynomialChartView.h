@@ -10,6 +10,8 @@
 #include <complex>
 #include <vector>
 
+class QVariantAnimation;
+
 namespace PolynomialSolver::UI
 {
     class PolynomialChartView : public QChartView
@@ -22,6 +24,7 @@ namespace PolynomialSolver::UI
         void setPolynomial(
             std::vector<double> coefficients,
             const std::vector<std::complex<double>>& roots);
+        void updatePolynomial(std::vector<double> coefficients);
         void clearGraph();
         void resetView();
 
@@ -47,6 +50,10 @@ namespace PolynomialSolver::UI
         QLineSeries* verticalZeroSeries_{};
         std::vector<QLineSeries*> curveSeries_;
         std::vector<double> coefficients_;
+        std::vector<double> renderedCoefficients_;
+        std::vector<double> animationStartCoefficients_;
+        PlotViewport animationStartViewport_;
+        QVariantAnimation* animation_{};
         std::vector<std::complex<double>> roots_;
         PlotViewport fittedViewport_{{-3.0, 3.0}, {-1.0, 1.0}};
         PlotViewport visibleViewport_{{-3.0, 3.0}, {-1.0, 1.0}};
@@ -57,5 +64,6 @@ namespace PolynomialSolver::UI
         void resampleCurve();
         void updateZeroAxes();
         void clearCurveSeries();
+        void stopAnimation();
     };
 }

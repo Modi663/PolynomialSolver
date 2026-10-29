@@ -71,7 +71,7 @@ target_link_libraries(PolynomialChartViewTests
         Qt6::Test
         Qt6::Widgets
 )
-add_test(NAME PolynomialChartViewTests COMMAND PolynomialChartViewTests)
+add_test(NAME PolynomialChartViewTests COMMAND PolynomialChartViewTests -o -,txt)
 set_tests_properties(PolynomialChartViewTests PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     ENVIRONMENT_MODIFICATION

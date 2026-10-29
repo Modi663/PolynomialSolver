@@ -10,6 +10,7 @@
 #include <QPainter>
 #include <QResizeEvent>
 #include <QWheelEvent>
+#include <QVariantAnimation>
 
 #include <algorithm>
 #include <cmath>
@@ -28,7 +29,7 @@ namespace PolynomialSolver::UI
         chart_->legend()->hide();
         chart_->setMargins(QMargins(4, 4, 4, 4));
         chart_->setBackgroundRoundness(0.0);
-        chart_->setTitle(QStringLiteral("Решите уравнение, чтобы увидеть график"));
+        chart_->setTitle(QStringLiteral("Введите корректные коэффициенты"));
 
         xAxis_ = new QValueAxis(chart_);
         yAxis_ = new QValueAxis(chart_);
@@ -64,6 +65,38 @@ namespace PolynomialSolver::UI
         rootSeries_->attachAxis(xAxis_);
         rootSeries_->attachAxis(yAxis_);
 
+        animation_ = new QVariantAnimation(this);
+        animation_->setDuration(200);
+        animation_->setStartValue(0.0);
+        animation_->setEndValue(1.0);
+        animation_->setEasingCurve(QEasingCurve::InOutCubic);
+        connect(animation_, &QVariantAnimation::valueChanged, this, [this](const QVariant& value)
+        {
+            const double progress = value.toDouble();
+            const std::size_t size = std::max(animationStartCoefficients_.size(), coefficients_.size());
+            renderedCoefficients_.resize(size);
+            for (std::size_t index = 0; index < size; ++index)
+            {
+                const auto coefficientAt = [size, index](const std::vector<double>& coefficients)
+                {
+                    const auto padding = size - coefficients.size();
+                    return index < padding ? 0.0 : coefficients[index - padding];
+                };
+                renderedCoefficients_[index] = std::lerp(
+                    coefficientAt(animationStartCoefficients_), coefficientAt(coefficients_), progress);
+            }
+            visibleViewport_ = {
+                {std::lerp(animationStartViewport_.x.minimum, fittedViewport_.x.minimum, progress),
+                 std::lerp(animationStartViewport_.x.maximum, fittedViewport_.x.maximum, progress)},
+                {std::lerp(animationStartViewport_.y.minimum, fittedViewport_.y.minimum, progress),
+                 std::lerp(animationStartViewport_.y.maximum, fittedViewport_.y.maximum, progress)}};
+            applyViewport();
+            resampleCurve();
+        });
+        connect(animation_, &QVariantAnimation::finished, this, [this]
+        {
+            renderedCoefficients_ = coefficients_;
+        });
         applyViewport();
     }
 
@@ -71,7 +104,9 @@ namespace PolynomialSolver::UI
         std::vector<double> coefficients,
         const std::vector<std::complex<double>>& roots)
     {
+        animation_->stop();
         coefficients_ = std::move(coefficients);
+        renderedCoefficients_ = coefficients_;
         roots_ = roots;
         fittedViewport_ = PlotDataBuilder::fit(coefficients_, roots_);
         visibleViewport_ = fittedViewport_;
@@ -81,10 +116,37 @@ namespace PolynomialSolver::UI
         resampleCurve();
     }
 
+    void PolynomialChartView::updatePolynomial(std::vector<double> coefficients)
+    {
+        if (coefficients == coefficients_) return;
+        if (coefficients_.empty())
+        {
+            setPolynomial(std::move(coefficients), {});
+            return;
+        }
+        animation_->stop();
+        animationStartCoefficients_ = renderedCoefficients_;
+        animationStartViewport_ = visibleViewport_;
+        coefficients_ = std::move(coefficients);
+        roots_.clear();
+        rootSeries_->clear();
+        fittedViewport_ = PlotDataBuilder::fit(coefficients_, {});
+        animation_->start();
+    }
+
+    void PolynomialChartView::stopAnimation()
+    {
+        animation_->stop();
+        renderedCoefficients_ = coefficients_;
+    }
+
     void PolynomialChartView::clearGraph()
     {
+        animation_->stop();
         clearCurveSeries();
         coefficients_.clear();
+        renderedCoefficients_.clear();
+        animationStartCoefficients_.clear();
         roots_.clear();
         rootSeries_->clear();
         horizontalZeroSeries_->clear();
@@ -92,7 +154,7 @@ namespace PolynomialSolver::UI
         fittedViewport_ = {{-3.0, 3.0}, {-1.0, 1.0}};
         visibleViewport_ = fittedViewport_;
         applyViewport();
-        chart_->setTitle(QStringLiteral("Решите уравнение, чтобы увидеть график"));
+        chart_->setTitle(QStringLiteral("Введите корректные коэффициенты"));
     }
 
     void PolynomialChartView::resetView()
@@ -102,6 +164,7 @@ namespace PolynomialSolver::UI
             return;
         }
 
+        stopAnimation();
         visibleViewport_ = fittedViewport_;
         applyViewport();
         resampleCurve();
@@ -154,6 +217,8 @@ namespace PolynomialSolver::UI
             return;
         }
 
+        stopAnimation();
+
         const QPointF position = event->position();
         const double fractionX = std::clamp(
             (position.x() - plot.left()) / plot.width(), 0.0, 1.0);
@@ -185,6 +250,7 @@ namespace PolynomialSolver::UI
     {
         if (!coefficients_.empty() && event->button() == Qt::LeftButton)
         {
+            stopAnimation();
             dragging_ = true;
             lastMousePosition_ = event->position().toPoint();
             setCursor(Qt::ClosedHandCursor);
@@ -262,23 +328,33 @@ namespace PolynomialSolver::UI
 
     void PolynomialChartView::resampleCurve()
     {
-        clearCurveSeries();
-
         if (coefficients_.empty())
         {
             return;
         }
 
         const PlotSegments segments = PlotDataBuilder::sample(
-            coefficients_, visibleViewport_.x, std::max(1, width()));
+            renderedCoefficients_, visibleViewport_.x, std::max(1, width()));
 
-        for (const QVector<QPointF>& points : segments)
+        while (curveSeries_.size() > static_cast<std::size_t>(segments.size()))
         {
+            auto* series = curveSeries_.back();
+            curveSeries_.pop_back();
+            chart_->removeSeries(series);
+            delete series;
+        }
+        for (std::size_t index = 0; index < segments.size(); ++index)
+        {
+            if (static_cast<std::size_t>(index) < curveSeries_.size())
+            {
+                curveSeries_[index]->replace(segments[index]);
+                continue;
+            }
             auto* series = new QLineSeries(chart_);
             QPen pen(QColor(QStringLiteral("#2563eb")));
             pen.setWidthF(2.0);
             series->setPen(pen);
-            series->replace(points);
+            series->replace(segments[index]);
             chart_->addSeries(series);
             series->attachAxis(xAxis_);
             series->attachAxis(yAxis_);
