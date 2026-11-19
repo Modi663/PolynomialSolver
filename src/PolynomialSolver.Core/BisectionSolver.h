@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Polynomial.h"
+#include "BisectionOptions.h"
 #include "SolveResult.h"
 
 #include <vector>
@@ -10,7 +11,7 @@ namespace PolynomialSolver::Core
     class BisectionSolver
     {
     public:
-        static constexpr std::size_t maximumScanIntervals = 100000;
+        static constexpr std::size_t maximumScanIntervals = BisectionOptions::maximumScanIntervals;
 
         [[nodiscard]] static SolveResult solveOne(
             const Polynomial& polynomial,

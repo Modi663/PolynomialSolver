@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SolveResult.h"
+#include "BisectionOptions.h"
 
 #include <vector>
 
@@ -16,6 +17,9 @@ namespace PolynomialSolver::Core
     class PolynomialSolverService
     {
     public:
+        [[nodiscard]] SolvedPolynomial solveNumerically(
+            std::vector<double> coefficients, const BisectionOptions& options) const;
+
         [[nodiscard]] SolvedPolynomial solve(
             std::vector<double> coefficients) const;
 

@@ -67,6 +67,7 @@ private slots:
     }
 };
 
-QTEST_APPLESS_MAIN(CoefficientParserTests)
+#include "TestRegistry.h"
+REGISTER_TEST_SUITE(CoefficientParserTests)
 
 #include "CoefficientParserTests.moc"

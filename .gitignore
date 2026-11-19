@@ -1,14 +1,6 @@
-# CMake and Qt build output
+# Build output
 /build/
 /dist/
-CMakeUserPresets.json
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-compile_commands.json
-CTestTestfile.cmake
-Testing/
-*_autogen/
 
 # Local IDE settings
 /.qtcreator/

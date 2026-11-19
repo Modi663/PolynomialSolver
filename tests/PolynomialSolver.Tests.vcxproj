@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{F8428C32-3487-4C94-8703-B15BD48B1E40}</ProjectGuid>
+    <Keyword>QtVS_v304</Keyword>
+    <RootNamespace>PolynomialSolver.Tests</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <QtMsBuild Condition="'$(QtMsBuild)' == ''">$(LocalAppData)\QtMsBuild</QtMsBuild>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <UseDebugLibraries Condition="'$(Configuration)' == 'Debug'">true</UseDebugLibraries>
+    <UseDebugLibraries Condition="'$(Configuration)' == 'Release'">false</UseDebugLibraries>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="Exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <Import Project="$(QtMsBuild)\qt_defaults.props" />
+  <PropertyGroup Label="QtSettings">
+    <QtInstall>6.12.0_msvc2022_64</QtInstall>
+    <QtModules>core;gui;widgets;charts;concurrent;testlib</QtModules>
+  </PropertyGroup>
+  <PropertyGroup>
+    <OutDir>$(MSBuildProjectDirectory)\..\build\msvc\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(OutDir)obj\$(MSBuildProjectName)\</IntDir>
+    <TargetName>PolynomialSolver.Tests</TargetName>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
+  <Import Project="$(QtMsBuild)\qt.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <ConformanceMode>true</ConformanceMode>
+      <WarningLevel>Level4</WarningLevel>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\src\PolynomialSolver.Core;$(ProjectDir)..\src\PolynomialSolver.UI;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)' == 'Debug'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)' == 'Release'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <QtMoc Include="..\src\PolynomialSolver.UI\BisectionSettingsDialog.h" />
+    <QtMoc Include="..\src\PolynomialSolver.UI\MainWindow.h" />
+    <QtMoc Include="..\src\PolynomialSolver.UI\PolynomialChartView.h" />
+    <QtMoc Include="..\src\PolynomialSolver.UI\SolveController.h" />
+    <QtMoc Include="QtTests\*Tests.cpp">
+      <DynamicSource>input</DynamicSource>
+      <QtMocFileName>%(Filename).moc</QtMocFileName>
+    </QtMoc>
+    <ClCompile Include="..\src\PolynomialSolver.UI\*.cpp" Exclude="..\src\PolynomialSolver.UI\main.cpp" />
+    <ClCompile Include="TestMain.cpp" />
+    <ClInclude Include="TestRegistry.h" />
+    <QtUic Include="..\src\PolynomialSolver.UI\MainWindow.ui" />
+    <QtRcc Include="..\src\PolynomialSolver.UI\resources.qrc" />
+    <ProjectReference Include="..\src\PolynomialSolver.Core\PolynomialSolver.Core.vcxproj">
+      <Project>{69D222D0-C503-48AD-A1F6-9542707298AA}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(QtMsBuild)\qt.targets" />
+  </ImportGroup>
+</Project>

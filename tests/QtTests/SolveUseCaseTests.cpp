@@ -176,7 +176,7 @@ private slots:
     void rejectsUnknownMode()
     {
         const SolveRequest request{{1, -1}, static_cast<SolveMode>(99)};
-        QVERIFY_EXCEPTION_THROWN(SolveUseCase{}.execute(request), std::invalid_argument);
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(SolveUseCase{}.execute(request)));
     }
 
     void identifiesFailureByMissingSolution()
@@ -194,6 +194,7 @@ private slots:
     }
 };
 
-QTEST_APPLESS_MAIN(SolveUseCaseTests)
+#include "TestRegistry.h"
+REGISTER_TEST_SUITE(SolveUseCaseTests)
 
 #include "SolveUseCaseTests.moc"

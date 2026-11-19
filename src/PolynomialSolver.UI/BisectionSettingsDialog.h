@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SolveUseCase.h"
+#include "BisectionOptions.h"
 
 #include <QDialog>
 

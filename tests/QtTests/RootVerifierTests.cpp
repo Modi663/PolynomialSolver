@@ -55,6 +55,7 @@ private slots:
     }
 };
 
-QTEST_APPLESS_MAIN(RootVerifierTests)
+#include "TestRegistry.h"
+REGISTER_TEST_SUITE(RootVerifierTests)
 
 #include "RootVerifierTests.moc"

@@ -16,7 +16,7 @@ class PolynomialSolverServiceTests final : public QObject
     Q_OBJECT
 
 private slots:
-    void solvesReportedQuinticWithoutBlocking()
+    void solvesReportedQuinticWithinTimeLimit()
     {
         QElapsedTimer elapsed;
         elapsed.start();
@@ -67,28 +67,20 @@ private slots:
 
     void rejectsCoefficientCountsOutsideSupportedDegrees()
     {
-        QVERIFY_EXCEPTION_THROWN(
-            PolynomialSolverService{}.solve({1.0}),
-            std::invalid_argument);
-        QVERIFY_EXCEPTION_THROWN(
-            PolynomialSolverService{}.solve({1.0, 0.0, 0.0, 0.0, 0.0}),
-            std::invalid_argument);
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(PolynomialSolverService{}.solve({1.0})));
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(PolynomialSolverService{}.solve({1.0, 0.0, 0.0, 0.0, 0.0})));
     }
 
     void rejectsNonFiniteCalculatedRoot()
     {
-        QVERIFY_EXCEPTION_THROWN(
-            PolynomialSolverService{}.solve({1e-308, -1e308}),
-            std::overflow_error);
+        QVERIFY_THROWS_EXCEPTION(std::overflow_error, static_cast<void>(PolynomialSolverService{}.solve({1e-308, -1e308})));
     }
 
     void rejectsNonFiniteAnalyticalResidual()
     {
         // Scaling produces finite roots, but evaluating the original polynomial
         // at the positive root overflows during Horner evaluation.
-        QVERIFY_EXCEPTION_THROWN(
-            PolynomialSolverService{}.solve({1e308, -1e308, -1.7e308}),
-            std::overflow_error);
+        QVERIFY_THROWS_EXCEPTION(std::overflow_error, static_cast<void>(PolynomialSolverService{}.solve({1e308, -1e308, -1.7e308})));
     }
 
     void solvesNumerically_data()
@@ -181,35 +173,23 @@ private slots:
     {
         const PolynomialSolverService service;
 
-        QVERIFY_EXCEPTION_THROWN(
-            service.solveNumerically({1}, -10, 10, 0.25),
-            std::invalid_argument);
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(service.solveNumerically({1}, -10, 10, 0.25)));
 
-        QVERIFY_EXCEPTION_THROWN(
-            service.solveNumerically({1, 0, 0, 0, 0, 0, 1}, -10, 10, 0.25),
-            std::invalid_argument);
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(service.solveNumerically({1, 0, 0, 0, 0, 0, 1}, -10, 10, 0.25)));
 
-        QVERIFY_EXCEPTION_THROWN(
-            service.solveNumerically({1, -1}, -10, 10, 0.25, -1),
-            std::invalid_argument);
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(service.solveNumerically({1, -1}, -10, 10, 0.25, -1)));
 
-        QVERIFY_EXCEPTION_THROWN(
-            service.solveNumerically({1, -1}, -10, 10, 0.25, 16),
-            std::invalid_argument);
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(service.solveNumerically({1, -1}, -10, 10, 0.25, 16)));
     }
 
     void rejectsUnattainableNumericalPrecision()
     {
-        QVERIFY_EXCEPTION_THROWN(
-            PolynomialSolverService{}.solveNumerically({1, 0, -1001}, 30, 40, 0.25, 15),
-            std::runtime_error);
+        QVERIFY_THROWS_EXCEPTION(std::runtime_error, static_cast<void>(PolynomialSolverService{}.solveNumerically({1, 0, -1001}, 30, 40, 0.25, 15)));
     }
 
     void rejectsNumericalOverflow()
     {
-        QVERIFY_EXCEPTION_THROWN(
-            PolynomialSolverService{}.solveNumerically({1e308, 1e308}, 1, 2, 0.25),
-            std::overflow_error);
+        QVERIFY_THROWS_EXCEPTION(std::overflow_error, static_cast<void>(PolynomialSolverService{}.solveNumerically({1e308, 1e308}, 1, 2, 0.25)));
     }
 
     void findsOnlyRootsInsideRequestedRange()
@@ -270,16 +250,12 @@ private slots:
         QFETCH(double, left);
         QFETCH(double, right);
         QFETCH(double, step);
-        QVERIFY_EXCEPTION_THROWN(
-            PolynomialSolverService{}.solveNumerically({1, -1}, left, right, step),
-            std::invalid_argument);
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(PolynomialSolverService{}.solveNumerically({1, -1}, left, right, step)));
     }
 
     void rejectsStepThatCannotAdvance()
     {
-        QVERIFY_EXCEPTION_THROWN(
-            PolynomialSolverService{}.solveNumerically({1, -1}, 1e16, 1e16 + 4, 0.1),
-            std::runtime_error);
+        QVERIFY_THROWS_EXCEPTION(std::runtime_error, static_cast<void>(PolynomialSolverService{}.solveNumerically({1, -1}, 1e16, 1e16 + 4, 0.1)));
     }
 
     void bisectsOneRootWithoutScanning()
@@ -291,9 +267,7 @@ private slots:
         QVERIFY(std::abs(solved.result.roots.front().real() - std::sqrt(2.0)) <= 5e-9);
         QCOMPARE(solved.residuals.size(), std::size_t{1});
         // There are two roots inside, but no bracket on the entire interval.
-        QVERIFY_EXCEPTION_THROWN(
-            PolynomialSolverService{}.solveOneNumerically({1, -3, 2}, 0, 3),
-            std::invalid_argument);
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(PolynomialSolverService{}.solveOneNumerically({1, -3, 2}, 0, 3)));
     }
 
     void oneRootIncludesEitherBoundary()
@@ -306,19 +280,17 @@ private slots:
     void oneRootValidatesArguments()
     {
         const PolynomialSolverService service;
-        QVERIFY_EXCEPTION_THROWN(service.solveOneNumerically({1}, 0, 1), std::invalid_argument);
-        QVERIFY_EXCEPTION_THROWN(service.solveOneNumerically({1, -1}, 1, 1), std::invalid_argument);
-        QVERIFY_EXCEPTION_THROWN(service.solveOneNumerically({1, -1}, 2, 1), std::invalid_argument);
-        QVERIFY_EXCEPTION_THROWN(service.solveOneNumerically({1, -1}, 0, 2, 16), std::invalid_argument);
-        QVERIFY_EXCEPTION_THROWN(service.solveOneNumerically({1, -1}, 0,
-            std::numeric_limits<double>::infinity()), std::invalid_argument);
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(service.solveOneNumerically({1}, 0, 1)));
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(service.solveOneNumerically({1, -1}, 1, 1)));
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(service.solveOneNumerically({1, -1}, 2, 1)));
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(service.solveOneNumerically({1, -1}, 0, 2, 16)));
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(service.solveOneNumerically({1, -1}, 0,
+            std::numeric_limits<double>::infinity())));
     }
 
     void rejectsExcessiveScanningBeforeSearching()
     {
-        QVERIFY_EXCEPTION_THROWN(
-            PolynomialSolverService{}.solveNumerically({1, -1}, 0, 10, 0.000001),
-            std::invalid_argument);
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(PolynomialSolverService{}.solveNumerically({1, -1}, 0, 10, 0.000001)));
         // The allowed boundary is accepted without accumulated step drift.
         const auto solved = PolynomialSolverService{}.solveNumerically({1, -1}, 0, 1, 0.00001);
         QCOMPARE(solved.result.roots.back().real(), 1.0);
@@ -326,6 +298,7 @@ private slots:
 
 };
 
-QTEST_APPLESS_MAIN(PolynomialSolverServiceTests)
+#include "TestRegistry.h"
+REGISTER_TEST_SUITE(PolynomialSolverServiceTests)
 
 #include "PolynomialSolverServiceTests.moc"

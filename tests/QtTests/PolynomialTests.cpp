@@ -41,26 +41,21 @@ private slots:
 
     void throwsForEmptyCoefficients()
     {
-        QVERIFY_EXCEPTION_THROWN(
-            Polynomial(std::vector<double>{}),
-            std::invalid_argument);
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(Polynomial(std::vector<double>{})));
     }
 
     void throwsForZeroLeadingCoefficient()
     {
-        QVERIFY_EXCEPTION_THROWN(
-            Polynomial({0.0, 2.0, 1.0}),
-            std::invalid_argument);
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(Polynomial({0.0, 2.0, 1.0})));
     }
 
     void rejectsNonFiniteCoefficient()
     {
-        QVERIFY_EXCEPTION_THROWN(
-            Polynomial({1.0, std::numeric_limits<double>::infinity()}),
-            std::invalid_argument);
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(Polynomial({1.0, std::numeric_limits<double>::infinity()})));
     }
 };
 
-QTEST_APPLESS_MAIN(PolynomialTests)
+#include "TestRegistry.h"
+REGISTER_TEST_SUITE(PolynomialTests)
 
 #include "PolynomialTests.moc"

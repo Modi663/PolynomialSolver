@@ -128,5 +128,6 @@ private slots:
     }
 };
 
-QTEST_MAIN(BisectionSettingsDialogTests)
+#include "TestRegistry.h"
+REGISTER_TEST_SUITE(BisectionSettingsDialogTests)
 #include "BisectionSettingsDialogTests.moc"

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PolynomialSolverService.h"
+#include "BisectionOptions.h"
 
 #include <optional>
 #include <string>
@@ -13,15 +14,6 @@ namespace PolynomialSolver::Core
         Analytical,
         Bisection,
         Compare
-    };
-
-    struct BisectionOptions
-    {
-        double left{};
-        double right{};
-        double step{0.25};
-        int decimalPlaces{6};
-        bool findAll{false};
     };
 
     struct SolveRequest

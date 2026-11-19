@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Header Files"><UniqueIdentifier>{1262B121-CB1E-4A31-AC64-8710E8449A21}</UniqueIdentifier></Filter>
+    <Filter Include="Source Files"><UniqueIdentifier>{1F016E12-F95C-4408-859A-696721360623}</UniqueIdentifier></Filter>
+    <Filter Include="Forms"><UniqueIdentifier>{302BFE07-9E66-4E51-8C98-A1FBE0D7648F}</UniqueIdentifier></Filter>
+    <Filter Include="Resource Files"><UniqueIdentifier>{10F984B7-6D94-4F38-A6DD-1C7A734D51F4}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="CoefficientParser.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="CoefficientValidation.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="IMainWindowView.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="ISolveExecutor.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="MainWindowPresenter.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="InputValidation.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="PlotDataBuilder.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="SolveReportFormatter.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="UiIcons.h"><Filter>Header Files</Filter></ClInclude>
+    <QtMoc Include="BisectionSettingsDialog.h"><Filter>Header Files</Filter></QtMoc>
+    <QtMoc Include="MainWindow.h"><Filter>Header Files</Filter></QtMoc>
+    <QtMoc Include="PolynomialChartView.h"><Filter>Header Files</Filter></QtMoc>
+    <QtMoc Include="SolveController.h"><Filter>Header Files</Filter></QtMoc>
+    <ClCompile Include="BisectionSettingsDialog.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="CoefficientParser.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="CoefficientValidation.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="MainWindowPresenter.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="main.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="MainWindow.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="PlotDataBuilder.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="PolynomialChartView.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="SolveController.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="SolveReportFormatter.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="UiIcons.cpp"><Filter>Source Files</Filter></ClCompile>
+    <QtUic Include="MainWindow.ui"><Filter>Forms</Filter></QtUic>
+    <QtRcc Include="resources.qrc"><Filter>Resource Files</Filter></QtRcc>
+    <ResourceCompile Include="windows-icon.rc"><Filter>Resource Files</Filter></ResourceCompile>
+    <Image Include="app.ico"><Filter>Resource Files</Filter></Image>
+    <None Include="app-icon.svg"><Filter>Resource Files</Filter></None>
+  </ItemGroup>
+</Project>

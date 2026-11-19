@@ -3,12 +3,10 @@
 #include <QtCharts/QChart>
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QLegend>
-#include <QtCharts/QScatterSeries>
 #include <QtCharts/QValueAxis>
 
 #include <QMouseEvent>
 #include <QPainter>
-#include <QImage>
 #include <QResizeEvent>
 #include <QWheelEvent>
 #include <QVariantAnimation>
@@ -34,6 +32,8 @@ namespace PolynomialSolver::UI
         chart_->legend()->hide();
         chart_->setMargins(QMargins(4, 4, 4, 4));
         chart_->setBackgroundRoundness(0.0);
+        chart_->setBackgroundBrush(QBrush(Qt::white));
+        setBackgroundBrush(QBrush(Qt::white));
 
         xAxis_ = new QValueAxis(chart_);
         yAxis_ = new QValueAxis(chart_);
@@ -61,14 +61,6 @@ namespace PolynomialSolver::UI
         verticalZeroSeries_->attachAxis(xAxis_);
         verticalZeroSeries_->attachAxis(yAxis_);
 
-        rootSeries_ = new QScatterSeries(chart_);
-        rootSeries_->setColor(QColor(QStringLiteral("#dc2626")));
-        rootSeries_->setBorderColor(QColor(QStringLiteral("#991b1b")));
-        rootSeries_->setMarkerSize(11.0);
-        chart_->addSeries(rootSeries_);
-        rootSeries_->attachAxis(xAxis_);
-        rootSeries_->attachAxis(yAxis_);
-
         animation_ = new QVariantAnimation(this);
         animation_->setDuration(200);
         animation_->setStartValue(0.0);
@@ -95,6 +87,18 @@ namespace PolynomialSolver::UI
         {
             renderedCoefficients_ = coefficients_;
         });
+        cameraAnimation_ = new QVariantAnimation(this);
+        cameraAnimation_->setDuration(240);
+        cameraAnimation_->setStartValue(0.0);
+        cameraAnimation_->setEndValue(1.0);
+        cameraAnimation_->setEasingCurve(QEasingCurve::InOutCubic);
+        connect(cameraAnimation_, &QVariantAnimation::valueChanged, this, [this](const QVariant& value)
+        {
+            const double progress = value.toDouble();
+            setView(QPointF(std::lerp(cameraStartCenter_.x(), cameraTargetCenter_.x(), progress),
+                std::lerp(cameraStartCenter_.y(), cameraTargetCenter_.y(), progress)),
+                std::lerp(cameraStartScale_, cameraTargetScale_, progress));
+        });
         connect(chart_, &QChart::plotAreaChanged, this, [this]
         {
             if (updatingViewport_) return;
@@ -111,6 +115,7 @@ namespace PolynomialSolver::UI
         const std::vector<std::complex<double>>& roots)
     {
         animation_->stop();
+        cameraAnimation_->stop();
         coefficients_ = std::move(coefficients);
         renderedCoefficients_ = coefficients_;
         roots_ = roots;
@@ -127,16 +132,18 @@ namespace PolynomialSolver::UI
             return;
         }
         animation_->stop();
+        cameraAnimation_->stop();
         animationStartCoefficients_ = renderedCoefficients_;
         coefficients_ = std::move(coefficients);
         roots_.clear();
-        rootSeries_->clear();
+        visibleRootMarkers_.clear();
         animation_->start();
     }
 
     void PolynomialChartView::stopAnimation()
     {
         animation_->stop();
+        cameraAnimation_->stop();
         renderedCoefficients_ = coefficients_;
         resampleCurve();
     }
@@ -144,12 +151,13 @@ namespace PolynomialSolver::UI
     void PolynomialChartView::clearGraph()
     {
         animation_->stop();
+        cameraAnimation_->stop();
         clearCurveSeries();
         coefficients_.clear();
         renderedCoefficients_.clear();
         animationStartCoefficients_.clear();
         roots_.clear();
-        rootSeries_->clear();
+        visibleRootMarkers_.clear();
         horizontalZeroSeries_->clear();
         verticalZeroSeries_->clear();
         applyViewport();
@@ -163,6 +171,8 @@ namespace PolynomialSolver::UI
         }
 
         stopAnimation();
+        roots_.clear();
+        visibleRootMarkers_.clear();
         center_ = QPointF(0, 0);
         unitsPerPixel_ = initialUnitsPerPixel;
         applyViewport();
@@ -193,7 +203,7 @@ namespace PolynomialSolver::UI
 
     qsizetype PolynomialChartView::rootMarkerCount() const noexcept
     {
-        return rootSeries_->count();
+        return visibleRootMarkers_.size();
     }
 
     int PolynomialChartView::zeroAxisSeriesCount() const noexcept
@@ -202,38 +212,37 @@ namespace PolynomialSolver::UI
             (!verticalZeroSeries_->points().empty() ? 1 : 0);
     }
 
-    void PolynomialChartView::paintEvent(QPaintEvent* event)
+    void PolynomialChartView::drawForeground(QPainter* painter, const QRectF& rectangle)
     {
-        // The native paint path updates Qt's per-viewport scene bookkeeping.
-        // QGraphicsView::render alone leaves subsequent scene changes unpainted.
-        QChartView::paintEvent(event);
-        if (animation_->state() == QAbstractAnimation::Running || dragging_) return;
+        QChartView::drawForeground(painter, rectangle);
+        painter->save();
+        painter->setClipRect(chart_->mapRectToScene(chart_->plotArea()), Qt::IntersectClip);
+        painter->setRenderHint(QPainter::Antialiasing);
+        painter->setPen(QColor(QStringLiteral("#991b1b")));
+        painter->setBrush(QColor(QStringLiteral("#dc2626")));
+        for (const auto& marker : visibleRootMarkers_)
+            painter->drawEllipse(chart_->mapToScene(chart_->mapToPosition(marker)), 5.5, 5.5);
+        painter->restore();
+    }
 
-        const QSize viewSize = viewport()->size();
-        if (viewSize.isEmpty()) return;
+    void PolynomialChartView::clearRoots()
+    {
+        cameraAnimation_->stop();
+        roots_.clear();
+        visibleRootMarkers_.clear();
+        viewport()->update();
+    }
 
-        // Render above the display resolution, then filter down. Bound the
-        // extra pixels so animation remains usable on large/high-DPI screens.
-        const double pixels = static_cast<double>(viewSize.width()) * viewSize.height();
-        const double displayScale = devicePixelRatioF();
-        const double scale = std::max(displayScale,
-            std::min(displayScale * 2, std::sqrt(8'000'000.0 / pixels)));
-        QImage buffer(QSize(static_cast<int>(std::ceil(viewSize.width() * scale)),
-            static_cast<int>(std::ceil(viewSize.height() * scale))), QImage::Format_ARGB32_Premultiplied);
-        if (buffer.isNull())
-        {
-            return;
-        }
-        buffer.fill(palette().color(QPalette::Base));
-        QPainter highResolutionPainter(&buffer);
-        highResolutionPainter.setRenderHints(renderHints());
-        QGraphicsView::render(&highResolutionPainter, QRectF(QPointF(0, 0), QSizeF(buffer.size())),
-            viewport()->rect(), Qt::IgnoreAspectRatio);
-        highResolutionPainter.end();
-
-        QPainter painter(viewport());
-        painter.setRenderHint(QPainter::SmoothPixmapTransform);
-        painter.drawImage(viewport()->rect(), buffer);
+    void PolynomialChartView::fitToRoots()
+    {
+        const auto target = PlotDataBuilder::cameraForRoots(roots_, chart_->plotArea().size(), initialUnitsPerPixel);
+        if (!target) return;
+        stopAnimation();
+        cameraStartCenter_ = center_;
+        cameraTargetCenter_ = target->center;
+        cameraStartScale_ = unitsPerPixel_;
+        cameraTargetScale_ = target->unitsPerPixel;
+        cameraAnimation_->start();
     }
 
     void PolynomialChartView::wheelEvent(QWheelEvent* event)
@@ -318,6 +327,7 @@ namespace PolynomialSolver::UI
 
     void PolynomialChartView::resizeEvent(QResizeEvent* event)
     {
+        if (cameraAnimation_) cameraAnimation_->stop();
         QChartView::resizeEvent(event);
         updatePlotArea();
 
@@ -456,7 +466,8 @@ namespace PolynomialSolver::UI
             for (const auto& marker : PlotDataBuilder::realRootMarkers(roots_))
                 if (marker.x() >= visibleViewport_.x.minimum && marker.x() <= visibleViewport_.x.maximum)
                     visible.push_back(marker);
-        rootSeries_->replace(visible);
+        visibleRootMarkers_ = std::move(visible);
+        viewport()->update();
     }
 
     void PolynomialChartView::clearCurveSeries()

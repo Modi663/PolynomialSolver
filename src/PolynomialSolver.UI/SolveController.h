@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SolveUseCase.h"
+#include "ISolveExecutor.h"
 
 #include <QObject>
 #include <QFutureWatcher>
@@ -10,15 +10,17 @@
 
 namespace PolynomialSolver::UI
 {
-    class SolveController final : public QObject
+    class SolveController final : public QObject, public ISolveExecutor
     {
         Q_OBJECT
     public:
         using Operation = std::function<Core::SolveReport(const Core::SolveRequest&)>;
 
         explicit SolveController(QObject* parent = nullptr, Operation operation = {});
-        [[nodiscard]] bool start(Core::SolveRequest request);
-        [[nodiscard]] bool isBusy() const noexcept { return busy_; }
+        [[nodiscard]] bool start(Core::SolveRequest request) override;
+        [[nodiscard]] bool isBusy() const noexcept override { return busy_; }
+
+        void setCallbacks(Callbacks callbacks) override { callbacks_ = std::move(callbacks); }
 
     signals:
         void busyChanged(bool busy);
@@ -33,6 +35,7 @@ namespace PolynomialSolver::UI
             QString error;
         };
         Operation operation_;
+        Callbacks callbacks_;
         QFutureWatcher<TaskResult>* watcher_{};
         QTimer* indicatorDelay_{};
         bool busy_{};

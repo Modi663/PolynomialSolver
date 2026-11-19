@@ -1,99 +1,50 @@
 #include "QuadraticSolver.h"
+#include "ScaledArithmetic.h"
 
 #include <algorithm>
 #include <cmath>
-#include <complex>
 #include <stdexcept>
 
 namespace PolynomialSolver::Core
 {
-    SolveResult QuadraticSolver::solve(
-        const Polynomial& polynomial)
+    SolveResult QuadraticSolver::solve(const Polynomial& polynomial)
     {
         if (polynomial.degree() != 2)
+            throw std::invalid_argument("Решатель квадратных уравнений принимает только полином второй степени.");
+
+        const auto& coefficients = polynomial.coefficients();
+        const double a = coefficients[0], b = coefficients[1], c = coefficients[2];
+        if (c == 0)
+            return {{{detail::scaledQuotient(-b, a), 0}, {0, 0}}, SolutionMethod::Analytical};
+
+        // x = 2^power * y balances a*x^2 and c before the discriminant is formed.
+        // Scaling only the coefficients can erase a tiny leading coefficient.
+        const int power = (std::ilogb(std::abs(c)) - std::ilogb(std::abs(a))) / 2;
+        const int exponent = std::max({std::ilogb(std::abs(a)) + 2 * power,
+            b == 0 ? std::ilogb(std::abs(c)) : std::ilogb(std::abs(b)) + power,
+            std::ilogb(std::abs(c))});
+        const double scaledA = std::scalbn(a, 2 * power - exponent);
+        const double scaledB = std::scalbn(b, power - exponent);
+        const double scaledC = std::scalbn(c, -exponent);
+        if (scaledA == 0 || scaledC == 0)
+            throw std::overflow_error("Коэффициенты слишком сильно различаются для вычисления корней в double.");
+
+        const double product = 4 * scaledA * scaledC;
+        const double discriminant = std::fma(scaledB, scaledB, -product)
+            + std::fma(-4 * scaledA, scaledC, product);
+        if (discriminant == 0)
         {
-            throw std::invalid_argument(
-                "Решатель квадратных уравнений принимает "
-                "только полином второй степени.");
+            const double root = detail::scaledQuotient(-b, a, -1);
+            return {{{root, 0}, {root, 0}}, SolutionMethod::Analytical};
         }
-
-        const auto& coefficients =
-            polynomial.coefficients();
-
-        double a = coefficients[0];
-        double b = coefficients[1];
-        double c = coefficients[2];
-
-        const double scale = std::max({
-            std::abs(a),
-            std::abs(b),
-            std::abs(c)
-            });
-
-        if (scale > 1e150 || scale < 1e-150)
+        if (discriminant > 0)
         {
-            a /= scale;
-            b /= scale;
-            c /= scale;
+            const double q = -0.5 * (scaledB + std::copysign(std::sqrt(discriminant), scaledB));
+            return {{{detail::scaledQuotient(q, scaledA, power), 0},
+                {detail::scaledQuotient(scaledC, q, power), 0}}, SolutionMethod::Analytical};
         }
-
-        const double discriminant =
-            b * b - 4.0 * a * c;
-
-        if (discriminant == 0.0)
-        {
-            const double root = -b / (2.0 * a);
-
-            return {
-                {
-                    { root, 0.0 },
-                    { root, 0.0 }
-                },
-                SolutionMethod::Analytical
-            };
-        }
-
-        if (discriminant > 0.0)
-        {
-            const double squareRoot =
-                std::sqrt(discriminant);
-
-            const double q =
-                -0.5 *
-                (b + std::copysign(squareRoot, b));
-
-            if (q == 0.0)
-            {
-                return {
-                    {
-                        { (-b + squareRoot) / (2.0 * a), 0.0 },
-                        { (-b - squareRoot) / (2.0 * a), 0.0 }
-                    },
-                    SolutionMethod::Analytical
-                };
-            }
-
-            return {
-                {
-                    { q / a, 0.0 },
-                    { c / q, 0.0 }
-                },
-                SolutionMethod::Analytical
-            };
-        }
-
-        const std::complex<double> squareRoot =
-            std::sqrt(
-                std::complex<double>(
-                    discriminant,
-                    0.0));
-
-        return {
-            {
-                (-b + squareRoot) / (2.0 * a),
-                (-b - squareRoot) / (2.0 * a)
-            },
-            SolutionMethod::Analytical
-        };
+        const double real = detail::scaledQuotient(-b, a, -1);
+        const double imaginary = detail::scaledQuotient(std::sqrt(-discriminant), 2 * scaledA, power);
+        return {{{real, imaginary}, {real, -imaginary}}, SolutionMethod::Analytical};
     }
 }

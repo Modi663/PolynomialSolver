@@ -4,7 +4,6 @@
 
 #include <QtCharts/QChartView>
 #include <QtCharts/QLineSeries>
-#include <QtCharts/QScatterSeries>
 #include <QtCharts/QValueAxis>
 
 #include <complex>
@@ -27,6 +26,8 @@ namespace PolynomialSolver::UI
         void updatePolynomial(std::vector<double> coefficients);
         void clearGraph();
         void resetView();
+        void fitToRoots();
+        void clearRoots();
 
         [[nodiscard]] bool hasPolynomial() const noexcept;
         [[nodiscard]] PlotViewport visibleViewport() const noexcept;
@@ -37,7 +38,7 @@ namespace PolynomialSolver::UI
         [[nodiscard]] int zeroAxisSeriesCount() const noexcept;
 
     protected:
-        void paintEvent(QPaintEvent* event) override;
+        void drawForeground(QPainter* painter, const QRectF& rectangle) override;
         void wheelEvent(QWheelEvent* event) override;
         void mousePressEvent(QMouseEvent* event) override;
         void mouseMoveEvent(QMouseEvent* event) override;
@@ -48,7 +49,7 @@ namespace PolynomialSolver::UI
         QChart* chart_{};
         QValueAxis* xAxis_{};
         QValueAxis* yAxis_{};
-        QScatterSeries* rootSeries_{};
+        QVector<QPointF> visibleRootMarkers_;
         QLineSeries* horizontalZeroSeries_{};
         QLineSeries* verticalZeroSeries_{};
         std::vector<QLineSeries*> curveSeries_;
@@ -56,6 +57,9 @@ namespace PolynomialSolver::UI
         std::vector<double> renderedCoefficients_;
         std::vector<double> animationStartCoefficients_;
         QVariantAnimation* animation_{};
+        QVariantAnimation* cameraAnimation_{};
+        QPointF cameraStartCenter_, cameraTargetCenter_;
+        double cameraStartScale_{}, cameraTargetScale_{};
         std::vector<std::complex<double>> roots_;
         static constexpr double initialUnitsPerPixel = 1.0 / 20.0;
         QPointF center_{0.0, 0.0};

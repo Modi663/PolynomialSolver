@@ -3,6 +3,7 @@
 #include <QSemaphore>
 #include <QSignalSpy>
 #include <QTimer>
+#include <QPointer>
 #include <QtTest/QTest>
 
 #include <atomic>
@@ -41,6 +42,30 @@ class SolveControllerTests final : public QObject
 {
     Q_OBJECT
 private slots:
+    void immediateRestartDoesNotDeliverObsoleteBusyState()
+    {
+        UI::SolveController controller;
+        bool staleBusyState = false;
+        controller.setCallbacks({[&](bool busy) { staleBusyState |= busy != controller.isBusy(); }, {}, {}, {}});
+        int restarts = 0;
+        connect(&controller, &UI::SolveController::busyChanged, &controller, [&](bool busy)
+        {
+            if (!busy && restarts++ == 0)
+                static_cast<void>(controller.start({{1, -3}, Core::SolveMode::Analytical, {}}));
+        });
+        QSignalSpy completed(&controller, &UI::SolveController::completed);
+        QVERIFY(controller.start({{1, -2}, Core::SolveMode::Analytical, {}}));
+        QTRY_COMPARE(completed.count(), 2);
+        QVERIFY(!staleBusyState);
+    }
+    void directCompletionHandlerMayDestroyController()
+    {
+        QPointer<UI::SolveController> controller = new UI::SolveController;
+        connect(controller, &UI::SolveController::completed, this,
+            [controller] { delete controller.data(); });
+        QVERIFY(controller->start({{1, -2}, Core::SolveMode::Analytical, {}}));
+        QTRY_VERIFY(controller.isNull());
+    }
     void quickCalculationDoesNotFlashIndicator()
     {
         UI::SolveController controller;
@@ -139,5 +164,6 @@ private slots:
     }
 };
 
-QTEST_GUILESS_MAIN(SolveControllerTests)
+#include "TestRegistry.h"
+REGISTER_TEST_SUITE(SolveControllerTests)
 #include "SolveControllerTests.moc"

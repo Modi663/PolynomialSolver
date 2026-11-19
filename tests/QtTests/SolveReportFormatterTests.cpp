@@ -57,5 +57,6 @@ private slots:
     }
 };
 
-QTEST_GUILESS_MAIN(SolveReportFormatterTests)
+#include "TestRegistry.h"
+REGISTER_TEST_SUITE(SolveReportFormatterTests)
 #include "SolveReportFormatterTests.moc"

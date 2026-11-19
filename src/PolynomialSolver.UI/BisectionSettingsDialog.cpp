@@ -1,6 +1,6 @@
 #include "BisectionSettingsDialog.h"
 
-#include "BisectionSolver.h"
+#include "BisectionOptions.h"
 #include "CoefficientParser.h"
 #include "InputValidation.h"
 #include "UiIcons.h"
@@ -110,35 +110,23 @@ namespace PolynomialSolver::UI
         if (!left && !right) errors << QStringLiteral("Введите числовые значения обеих границ.");
         else if (!left) errors << QStringLiteral("Левая граница: введите конечное число.");
         else if (!right) errors << QStringLiteral("Правая граница: введите конечное число.");
-        if (left && right && *left >= *right)
+        const bool findAll = findAll_->isChecked();
+        const auto step = findAll
+            ? CoefficientParser::parse(step_->text(), QLocale::system()) : std::optional(0.25);
+        if (!step)
         {
-            markInvalid(left_, true);
-            markInvalid(right_, true);
-            errors << QStringLiteral("Правая граница должна быть больше левой.");
+            markInvalid(step_, true);
+            errors << QStringLiteral("Шаг: введите конечное число.");
         }
-        if (findAll_->isChecked())
-        {
-            const auto step = CoefficientParser::parse(step_->text(), QLocale::system());
-            if (!step || *step <= 0)
+        if (left && right && step)
+            if (const auto issue = Core::validateBisectionOptions(
+                {*left, *right, *step, precision_->value(), findAll}))
             {
-                markInvalid(step_, true);
-                errors << QStringLiteral("Шаг: введите конечное число больше нуля.");
+                markInvalid(left_, issue->field == Core::BisectionField::Bounds);
+                markInvalid(right_, issue->field == Core::BisectionField::Bounds);
+                markInvalid(step_, issue->field == Core::BisectionField::Step);
+                errors << QString::fromStdString(issue->message);
             }
-            else if (left && right && *left < *right)
-            {
-                if (*left + *step == *left)
-                {
-                    markInvalid(step_, true);
-                    errors << QStringLiteral("Шаг слишком мал для этого интервала.");
-                }
-                else if (std::ceil((static_cast<long double>(*right) - *left) / *step)
-                    > Core::BisectionSolver::maximumScanIntervals)
-                {
-                    markInvalid(step_, true);
-                    errors << QStringLiteral("Слишком много участков (максимум 100 000). Увеличьте шаг.");
-                }
-            }
-        }
         error_->setText(errors.join('\n'));
         applyButton_->setEnabled(errors.isEmpty());
         return errors.isEmpty();

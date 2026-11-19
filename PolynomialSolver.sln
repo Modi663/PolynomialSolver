@@ -1,0 +1,27 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.11.12328.437
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{BC8A1FFA-BEE3-4634-8014-F334798102B3}") = "PolynomialSolver.UI", "src\PolynomialSolver.UI\PolynomialSolver.UI.vcxproj", "{BC1D8648-46BC-4ACF-AECB-E7E9498A8245}"
+EndProject
+Project("{BC8A1FFA-BEE3-4634-8014-F334798102B3}") = "PolynomialSolver.Core", "src\PolynomialSolver.Core\PolynomialSolver.Core.vcxproj", "{69D222D0-C503-48AD-A1F6-9542707298AA}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BC1D8648-46BC-4ACF-AECB-E7E9498A8245}.Debug|x64.ActiveCfg = Debug|x64
+		{BC1D8648-46BC-4ACF-AECB-E7E9498A8245}.Debug|x64.Build.0 = Debug|x64
+		{BC1D8648-46BC-4ACF-AECB-E7E9498A8245}.Release|x64.ActiveCfg = Release|x64
+		{BC1D8648-46BC-4ACF-AECB-E7E9498A8245}.Release|x64.Build.0 = Release|x64
+		{69D222D0-C503-48AD-A1F6-9542707298AA}.Debug|x64.ActiveCfg = Debug|x64
+		{69D222D0-C503-48AD-A1F6-9542707298AA}.Debug|x64.Build.0 = Debug|x64
+		{69D222D0-C503-48AD-A1F6-9542707298AA}.Release|x64.ActiveCfg = Release|x64
+		{69D222D0-C503-48AD-A1F6-9542707298AA}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

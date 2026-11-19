@@ -61,8 +61,7 @@ private:
             closer.start(5);
         }
         window.findChild<QPushButton*>("solveButton")->click();
-        auto* controller = window.findChild<PolynomialSolver::UI::SolveController*>();
-        if (controller) QTRY_VERIFY(!controller->isBusy());
+        QTRY_VERIFY(window.findChild<QPushButton*>("solveButton")->isEnabled());
     }
     static void configure(MainWindow& window, QString left, QString right, bool all = false, QString step = "0.25")
     {
@@ -80,7 +79,8 @@ private:
 private slots:
     void hidesUnavailableSettings()
     {
-        MainWindow window;
+        PolynomialSolver::UI::SolveController executor;
+        MainWindow window(executor);
         auto* settings = window.findChild<QPushButton*>("settingsButton");
         QVERIFY(settings->isHidden());
         window.findChild<QComboBox*>("methodComboBox")->setCurrentIndex(1);
@@ -91,10 +91,11 @@ private slots:
 
     void unexpectedBackgroundFailureRestoresSolveButtonAndShowsMessage()
     {
-        MainWindow window(nullptr, [](const PolynomialSolver::Core::SolveRequest&) -> PolynomialSolver::Core::SolveReport
+        PolynomialSolver::UI::SolveController executor(nullptr, [](const PolynomialSolver::Core::SolveRequest&) -> PolynomialSolver::Core::SolveReport
         {
             throw std::runtime_error("unexpected failure");
         });
+        MainWindow window(executor);
         bool seen = false;
         clickSolve(window, &seen);
         QVERIFY(seen);
@@ -106,15 +107,16 @@ private slots:
     {
         const auto gate = std::make_shared<QSemaphore>();
         struct Release { std::shared_ptr<QSemaphore> gate; ~Release() { gate->release(); } } release{gate};
-        MainWindow window(nullptr, [gate](const PolynomialSolver::Core::SolveRequest& request)
+        PolynomialSolver::UI::SolveController executor(nullptr, [gate](const PolynomialSolver::Core::SolveRequest& request)
         {
             gate->acquire();
             return PolynomialSolver::Core::SolveUseCase{}.execute(request);
         });
+        MainWindow window(executor);
         window.show();
         coefficient(window, 0)->setText("-2");
         window.findChild<QPushButton*>("solveButton")->click();
-        auto* controller = window.findChild<PolynomialSolver::UI::SolveController*>();
+        auto* controller = &executor;
         QVERIFY(controller->isBusy());
         QVERIFY(!window.findChild<QPushButton*>("solveButton")->isEnabled());
         coefficient(window, 0)->setText("-9");
@@ -133,7 +135,8 @@ private slots:
     }
     void latestEntryUsesActualTextFormattingWithoutBackground()
     {
-        MainWindow window;
+        PolynomialSolver::UI::SolveController executor;
+        MainWindow window(executor);
         coefficient(window, 0)->setText("-2");
         clickSolve(window);
         auto first = history(window)->document()->find(QStringLiteral("Расчёт №1"));
@@ -149,7 +152,8 @@ private slots:
     }
     void applicationIconIsNotTheGenericWindowPlaceholder()
     {
-        MainWindow window;
+        PolynomialSolver::UI::SolveController executor;
+        MainWindow window(executor);
         const QImage image = window.windowIcon().pixmap(32, 32).toImage();
         bool hasColor = false;
         for (int y = 0; y < image.height() && !hasColor; ++y)
@@ -162,7 +166,8 @@ private slots:
     }
     void iconsAndHistoryControlsAreInTheirSections()
     {
-        MainWindow window;
+        PolynomialSolver::UI::SolveController executor;
+        MainWindow window(executor);
         auto* settings = window.findChild<QPushButton*>("settingsButton");
         QVERIFY(settings->text().isEmpty());
         QVERIFY(!settings->icon().isNull());
@@ -175,7 +180,8 @@ private slots:
     }
     void keepsNativeLayoutAndPreviewsBeforeSolving()
     {
-        MainWindow window;
+        PolynomialSolver::UI::SolveController executor;
+        MainWindow window(executor);
         window.show();
         QTest::qWait(10);
         auto* splitter = window.findChild<QSplitter*>("contentSplitter");
@@ -190,7 +196,8 @@ private slots:
     }
     void validatesImmediatelyAndShowsMessageOnlyOnSolve()
     {
-        MainWindow window;
+        PolynomialSolver::UI::SolveController executor;
+        MainWindow window(executor);
         window.show();
         QTest::qWait(10);
         coefficient(window, 1)->setFocus();
@@ -218,14 +225,16 @@ private slots:
     }
     void rejectsLeadingZeroImmediately()
     {
-        MainWindow window;
+        PolynomialSolver::UI::SolveController executor;
+        MainWindow window(executor);
         coefficient(window, 1)->setText("0");
         QVERIFY(coefficient(window, 1)->property("invalid").toBool());
         QVERIFY(!window.findChild<PolynomialChartView*>()->hasPolynomial());
     }
     void retainsHistoryAndHighlightsOnlyLatestRun()
     {
-        MainWindow window;
+        PolynomialSolver::UI::SolveController executor;
+        MainWindow window(executor);
         coefficient(window, 0)->setText("-2");
         clickSolve(window);
         QTRY_VERIFY(history(window)->toPlainText().contains("x1 = 2"));
@@ -252,7 +261,8 @@ private slots:
     }
     void returnSolvesAndCoefficientsSurviveDegreeChanges()
     {
-        MainWindow window;
+        PolynomialSolver::UI::SolveController executor;
+        MainWindow window(executor);
         window.show();
         coefficient(window, 1)->setText("0,5");
         coefficient(window, 0)->setText("-1");
@@ -265,7 +275,8 @@ private slots:
     }
     void opensRequiredSettingsAndSwitchesOneAndAllRoots()
     {
-        MainWindow window;
+        PolynomialSolver::UI::SolveController executor;
+        MainWindow window(executor);
         window.show();
         QTest::qWait(20);
         window.findChild<QRadioButton*>("degreeButton2")->click();
@@ -290,7 +301,8 @@ private slots:
     }
     void comparesBothMethodsEvenWhenBisectionFails()
     {
-        MainWindow window;
+        PolynomialSolver::UI::SolveController executor;
+        MainWindow window(executor);
         window.findChild<QRadioButton*>("degreeButton2")->click();
         auto* method = window.findChild<QComboBox*>("methodComboBox");
         QVERIFY(method->count() == 3);
@@ -316,7 +328,8 @@ private slots:
     }
     void fifthDegreeOnlyUsesBisection()
     {
-        MainWindow window;
+        PolynomialSolver::UI::SolveController executor;
+        MainWindow window(executor);
         window.show();
         QTest::qWait(20);
         window.findChild<QRadioButton*>("degreeButton5")->click();
@@ -330,5 +343,6 @@ private slots:
         QCOMPARE(window.findChild<PolynomialChartView*>()->rootMarkerCount(), 5);
     }
 };
-QTEST_MAIN(MainWindowTests)
+#include "TestRegistry.h"
+REGISTER_TEST_SUITE(MainWindowTests)
 #include "MainWindowTests.moc"

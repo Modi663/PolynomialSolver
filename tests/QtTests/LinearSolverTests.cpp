@@ -36,12 +36,11 @@ private slots:
     {
         const Polynomial polynomial({1.0, 2.0, 1.0});
 
-        QVERIFY_EXCEPTION_THROWN(
-            LinearSolver::solve(polynomial),
-            std::invalid_argument);
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(LinearSolver::solve(polynomial)));
     }
 };
 
-QTEST_APPLESS_MAIN(LinearSolverTests)
+#include "TestRegistry.h"
+REGISTER_TEST_SUITE(LinearSolverTests)
 
 #include "LinearSolverTests.moc"

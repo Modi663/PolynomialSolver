@@ -43,6 +43,84 @@ private:
     }
 
 private slots:
+    void smoothlyFitsAllRealRootsWithEqualUnits()
+    {
+        PolynomialChartView view;
+        view.resize(720, 420);
+        view.show();
+        view.setPolynomial({1, 0, -900, 0}, {{-30, 0}, {0, 0}, {30, 0}});
+        QTest::qWait(20);
+        const auto before = view.visibleViewport();
+        view.fitToRoots();
+        QCOMPARE(view.visibleViewport().x.span(), before.x.span());
+        QTest::qWait(70);
+        QVERIFY(view.visibleViewport().x.span() > before.x.span());
+        QVERIFY(hasEqualUnits(view));
+        QTRY_COMPARE(view.rootMarkerCount(), 3);
+        QTest::qWait(250);
+        QVERIFY(view.visibleViewport().x.minimum < -30);
+        QVERIFY(view.visibleViewport().x.maximum > 30);
+        QVERIFY(hasEqualUnits(view));
+    }
+    void manualControlStopsAutomaticFit()
+    {
+        PolynomialChartView view;
+        view.resize(720, 420);
+        view.show();
+        view.setPolynomial({1, -100}, {{100, 0}});
+        QTest::qWait(20);
+        view.fitToRoots();
+        QTest::qWait(70);
+        QTest::mouseClick(view.QChartView::viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(250, 200));
+        const auto stopped = view.visibleViewport();
+        QTest::qWait(300);
+        QCOMPARE(view.visibleViewport().x.minimum, stopped.x.minimum);
+        QCOMPARE(view.visibleViewport().x.maximum, stopped.x.maximum);
+    }
+    void resetClearsRootMarkers()
+    {
+        PolynomialChartView view;
+        view.setPolynomial({1, 0}, {{0, 0}});
+        QCOMPARE(view.rootMarkerCount(), 1);
+        view.resetView();
+        QCOMPARE(view.rootMarkerCount(), 0);
+    }
+    void backgroundCoversViewportAfterMaximizeAndRestore()
+    {
+        PolynomialChartView view;
+        QPalette contrastingPalette = view.palette();
+        contrastingPalette.setColor(QPalette::Base, QColor("#ff00ff"));
+        view.setPalette(contrastingPalette);
+        view.resize(420, 300);
+        view.setPolynomial({1, 0}, {});
+        view.show();
+        QTest::qWait(30);
+        for (const bool maximized : {true, false})
+        {
+            if (maximized) view.showMaximized();
+            else view.showNormal();
+            QTest::qWait(40);
+            const auto image = view.QChartView::viewport()->grab().toImage();
+            QVERIFY(!image.isNull());
+            for (const auto point : {QPoint(8, 8), QPoint(image.width() - 9, 8),
+                QPoint(8, image.height() - 9), QPoint(image.width() - 9, image.height() - 9)})
+                QCOMPARE(image.pixelColor(point), QColor(Qt::white));
+        }
+    }
+    void markerIsPaintedAboveCurveAtRoot()
+    {
+        PolynomialChartView view;
+        view.resize(720, 420);
+        view.show();
+        view.setPolynomial({1, 0}, {{0, 0}});
+        QTest::qWait(30);
+        const auto image = view.QChartView::viewport()->grab().toImage();
+        const auto pixel = view.mapFromScene(view.chart()->mapToScene(
+            view.chart()->mapToPosition(QPointF(0, 0))));
+        const auto color = image.pixelColor(qRound(pixel.x() * view.devicePixelRatioF()),
+            qRound(pixel.y() * view.devicePixelRatioF()));
+        QVERIFY2(color.red() > color.blue() + 40, "The root marker must cover the blue curve at the root");
+    }
     void zoomDoesNotMoveThePlotAreaWhenTickLabelsChange()
     {
         PolynomialChartView view;
@@ -372,7 +450,6 @@ private slots:
         QTest::qWait(80);
         QTest::mouseClick(view.QChartView::viewport(), Qt::LeftButton,
             Qt::NoModifier, QPoint(250, 200));
-        QTest::qWait(250);
         bool foundCurve = false;
         for (auto* series : view.chart()->series())
             if (auto* curve = qobject_cast<QLineSeries*>(series); curve && curve->count() > 2)
@@ -502,6 +579,7 @@ private slots:
     }
 };
 
-QTEST_MAIN(PolynomialChartViewTests)
+#include "TestRegistry.h"
+REGISTER_TEST_SUITE(PolynomialChartViewTests)
 
 #include "PolynomialChartViewTests.moc"

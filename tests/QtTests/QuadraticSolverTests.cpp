@@ -16,6 +16,28 @@ class QuadraticSolverTests final : public QObject
     Q_OBJECT
 
 private slots:
+    void preservesRepresentableRealPartOfAlmostImaginaryRoots()
+    {
+        const auto result = QuadraticSolver::solve(
+            Polynomial({1, std::ldexp(1.0, -1020), std::ldexp(1.0, 200)}));
+        for (const auto root : result.roots)
+            QVERIFY(root.real() == -std::ldexp(1.0, -1021));
+    }
+    void keepsTinyDiscriminantAndHugeImaginaryRoots()
+    {
+        const auto result = QuadraticSolver::solve(Polynomial({1e-300, 0, 1e-30}));
+        for (const auto root : result.roots)
+        {
+            QCOMPARE(root.real(), 0.0);
+            QVERIFY(std::abs(std::abs(root.imag()) / 1e135 - 1) < 1e-12);
+        }
+    }
+    void preservesFiniteRootsAcrossExtremeExponents()
+    {
+        const auto result = QuadraticSolver::solve(Polynomial({1, -1e300, 1}));
+        QVERIFY(std::abs(result.roots[0].real() / 1e300 - 1) < 1e-12);
+        QVERIFY(std::abs(result.roots[1].real() / 1e-300 - 1) < 1e-12);
+    }
     void solvesEquationWithTwoRealRoots()
     {
         const auto result = QuadraticSolver::solve(
@@ -56,9 +78,7 @@ private slots:
 
     void rejectsPolynomialOfWrongDegree()
     {
-        QVERIFY_EXCEPTION_THROWN(
-            QuadraticSolver::solve(Polynomial({2.0, -6.0})),
-            std::invalid_argument);
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(QuadraticSolver::solve(Polynomial({2.0, -6.0}))));
     }
 
     void keepsSmallRootAccurate()
@@ -88,6 +108,7 @@ private slots:
     }
 };
 
-QTEST_APPLESS_MAIN(QuadraticSolverTests)
+#include "TestRegistry.h"
+REGISTER_TEST_SUITE(QuadraticSolverTests)
 
 #include "QuadraticSolverTests.moc"

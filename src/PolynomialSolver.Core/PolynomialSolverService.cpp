@@ -52,6 +52,16 @@ namespace PolynomialSolver::Core
         }
     }
 
+    SolvedPolynomial PolynomialSolverService::solveNumerically(
+        std::vector<double> coefficients, const BisectionOptions& options) const
+    {
+        if (options.findAll)
+            return solveNumerically(std::move(coefficients),
+                options.left, options.right, options.step, options.decimalPlaces);
+        return solveOneNumerically(std::move(coefficients),
+            options.left, options.right, options.decimalPlaces);
+    }
+
     SolvedPolynomial PolynomialSolverService::solveOneNumerically(
         std::vector<double> coefficients, double left, double right, int decimalPlaces) const
     {

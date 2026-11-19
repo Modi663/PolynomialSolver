@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <numeric>
 
 namespace
 {
@@ -20,10 +21,9 @@ namespace
         return value;
     }
 
-    bool isNearlyReal(const std::complex<double>& root)
+    bool isReal(const std::complex<double>& root)
     {
-        return std::abs(root.imag()) <=
-            1e-8 * (1.0 + std::abs(root.real()));
+        return root.imag() == 0;
     }
 
 
@@ -57,6 +57,29 @@ namespace PolynomialSolver::UI
         return viewport;
     }
 
+    std::optional<PlotCamera> PlotDataBuilder::cameraForRoots(
+        const std::vector<std::complex<double>>& roots, QSizeF plotSize, double minimumScale)
+    {
+        const auto markers = realRootMarkers(roots);
+        if (markers.empty() || plotSize.width() <= 0 || plotSize.height() <= 0) return std::nullopt;
+        // Keep the origin and every real root visible; curve peaks may leave
+        // the view because x and y deliberately share one physical scale.
+        double minimum = 0, maximum = 0;
+        for (const auto& marker : markers)
+        {
+            minimum = std::min(minimum, marker.x());
+            maximum = std::max(maximum, marker.x());
+        }
+        for (const double padding : {1.3, 1.1, 1.0})
+        {
+            const double scale = std::max(minimumScale,
+                padding * (maximum / plotSize.width() - minimum / plotSize.width()));
+            const PlotCamera camera{QPointF(std::midpoint(minimum, maximum), 0), scale};
+            if (equalScaleViewport(camera.center, camera.unitsPerPixel, plotSize)) return camera;
+        }
+        return std::nullopt;
+    }
+
     QVector<QPointF> PlotDataBuilder::realRootMarkers(
         const std::vector<std::complex<double>>& roots)
     {
@@ -64,7 +87,7 @@ namespace PolynomialSolver::UI
 
         for (const auto& root : roots)
         {
-            if (isNearlyReal(root) && std::isfinite(root.real()))
+            if (isReal(root) && std::isfinite(root.real()))
             {
                 values.push_back(root.real());
             }
@@ -79,10 +102,7 @@ namespace PolynomialSolver::UI
             if (!markers.empty())
             {
                 const double previous = markers.constLast().x();
-                const double tolerance =
-                    1e-9 * (1.0 + std::max(std::abs(previous), std::abs(value)));
-
-                if (std::abs(value - previous) <= tolerance)
+                if (value == previous)
                 {
                     continue;
                 }

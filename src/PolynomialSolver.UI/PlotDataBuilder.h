@@ -27,6 +27,12 @@ namespace PolynomialSolver::UI
         AxisRange y;
     };
 
+    struct PlotCamera
+    {
+        QPointF center;
+        double unitsPerPixel;
+    };
+
     using PlotSegments = std::vector<QVector<QPointF>>;
 
     class PlotDataBuilder final
@@ -34,6 +40,9 @@ namespace PolynomialSolver::UI
     public:
         [[nodiscard]] static std::optional<PlotViewport> equalScaleViewport(
             QPointF center, double unitsPerPixel, QSizeF plotSize);
+
+        [[nodiscard]] static std::optional<PlotCamera> cameraForRoots(
+            const std::vector<std::complex<double>>& roots, QSizeF plotSize, double minimumScale);
 
         [[nodiscard]] static PlotSegments sample(
             const std::vector<double>& coefficients,

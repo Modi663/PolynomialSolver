@@ -11,6 +11,7 @@ using PolynomialSolver::Core::CubicSolver;
 using PolynomialSolver::Core::Polynomial;
 using PolynomialSolver::Core::RootVerifier;
 using PolynomialSolver::Core::SolutionMethod;
+using PolynomialSolver::Core::SolveResult;
 
 namespace
 {
@@ -36,7 +37,7 @@ namespace
     {
         for (const auto& root : roots)
         {
-            if (RootVerifier::residual(polynomial, root) >= 1e-9)
+            if (!(RootVerifier::residual(polynomial, root) < 1e-9))
             {
                 return false;
             }
@@ -51,6 +52,42 @@ class CubicSolverTests final : public QObject
     Q_OBJECT
 
 private slots:
+    void ignoresUnrepresentableIntermediateTermWhenRootsAreRepresentable()
+    {
+        SolveResult result;
+        try { result = CubicSolver::solve(Polynomial({1, std::ldexp(1.0, -1060), 0, std::ldexp(1.0, 60)})); }
+        catch (const std::exception& error) { QFAIL(error.what()); }
+        QCOMPARE(result.roots.size(), std::size_t{3});
+        QVERIFY(containsRoot(result.roots, {-std::ldexp(1.0, 20), 0}, 1e-8));
+    }
+    void factorsZeroRootWithoutErasingTinyRealPartOfOtherRoots()
+    {
+        SolveResult result;
+        try { result = CubicSolver::solve(Polynomial({1, std::ldexp(1.0, -1060), std::ldexp(1.0, 60), 0})); }
+        catch (const std::exception& error) { QFAIL(error.what()); }
+        int complexCount = 0;
+        for (const auto root : result.roots)
+            if (root.imag() != 0)
+            {
+                ++complexCount;
+                QVERIFY(root.real() == -std::ldexp(1.0, -1061));
+            }
+        QCOMPARE(complexCount, 2);
+    }
+    void retainsRealRootWhenCardanoTermsAlmostCancel()
+    {
+        const double coefficient = std::ldexp(3.0, 120);
+        const auto result = CubicSolver::solve(Polynomial({1, 0, coefficient, coefficient}));
+        QVERIFY(containsRoot(result.roots, {-1, 0}, 1e-12));
+        for (const auto root : result.roots)
+            QVERIFY(std::isfinite(root.real()) && std::isfinite(root.imag()));
+    }
+    void doesNotTurnTinyConstantIntoARepeatedRoot()
+    {
+        const auto result = CubicSolver::solve(Polynomial({1, 0, 0, 1e-300}));
+        QVERIFY(std::abs(result.roots[0].real() / -1e-100 - 1) < 1e-12);
+        QVERIFY(std::abs(result.roots[1].imag() / (std::sqrt(3.0) * 0.5e-100) - 1) < 1e-12);
+    }
     void findsThreeDifferentRealRoots()
     {
         const Polynomial polynomial({1.0, -6.0, 11.0, -6.0});
@@ -113,12 +150,11 @@ private slots:
 
     void rejectsWrongDegree()
     {
-        QVERIFY_EXCEPTION_THROWN(
-            CubicSolver::solve(Polynomial({1.0, 0.0, 1.0})),
-            std::invalid_argument);
+        QVERIFY_THROWS_EXCEPTION(std::invalid_argument, static_cast<void>(CubicSolver::solve(Polynomial({1.0, 0.0, 1.0}))));
     }
 };
 
-QTEST_APPLESS_MAIN(CubicSolverTests)
+#include "TestRegistry.h"
+REGISTER_TEST_SUITE(CubicSolverTests)
 
 #include "CubicSolverTests.moc"

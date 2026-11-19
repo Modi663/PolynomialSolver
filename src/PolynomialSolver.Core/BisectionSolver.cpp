@@ -24,23 +24,22 @@ namespace PolynomialSolver::Core
         return value.real();
     }
 
-    void validateInterval(const Polynomial& polynomial, double left, double right, int decimalPlaces)
+    void validateOptions(const Polynomial& polynomial, const BisectionOptions& options)
     {
         if (polynomial.degree() < 1 || polynomial.degree() > 5)
             throw std::invalid_argument("Метод бисекции поддерживает степени от 1 до 5.");
-        if (decimalPlaces < 0 || decimalPlaces > 15)
-            throw std::invalid_argument("Количество знаков после запятой должно быть от 0 до 15.");
-        if (!std::isfinite(left) || !std::isfinite(right))
-            throw std::invalid_argument("Границы интервала должны быть конечными числами.");
-        if (left >= right)
-            throw std::invalid_argument("Левая граница должна быть меньше правой.");
+        if (const auto issue = validateBisectionOptions(options))
+        {
+            if (issue->cannotAdvance) throw std::runtime_error(issue->message);
+            throw std::invalid_argument(issue->message);
+        }
     }
     }
 
     SolveResult BisectionSolver::solveOne(
         const Polynomial& polynomial, double left, double right, int decimalPlaces)
     {
-        validateInterval(polynomial, left, right, decimalPlaces);
+        validateOptions(polynomial, {left, right, 0.25, decimalPlaces, false});
         const double root = bisect(polynomial, left, right, 0.5 * std::pow(10.0, -decimalPlaces));
         return {{{root, 0.0}}, SolutionMethod::Numerical};
     }
@@ -52,20 +51,7 @@ namespace PolynomialSolver::Core
         double step,
         int decimalPlaces)
     {
-        validateInterval(polynomial, left, right, decimalPlaces);
-        if (!std::isfinite(step) || step <= 0.0)
-        {
-            throw std::invalid_argument(
-                "Шаг должен быть конечным числом больше нуля.");
-        }
-
-        if (left + step == left)
-            throw std::runtime_error("Шаг слишком мал для данного диапазона.");
-
-        const long double count = std::ceil(
-            (static_cast<long double>(right) - left) / step);
-        if (count > maximumScanIntervals)
-            throw std::invalid_argument("Слишком много шагов поиска (максимум 100 000). Увеличьте шаг.");
+        validateOptions(polynomial, {left, right, step, decimalPlaces, true});
 
         const double epsilon =
             0.5 * std::pow(10.0, -decimalPlaces);
@@ -98,13 +84,11 @@ namespace PolynomialSolver::Core
         double x1 = left;
         double y1 = valueAt(polynomial, x1);
 
-        const auto intervalCount = static_cast<std::size_t>(std::ceil(
-            (static_cast<long double>(right) - left) / step));
+        const auto intervalCount = static_cast<std::size_t>(scanIntervalCount(left, right, step));
         for (std::size_t index = 1; index <= intervalCount; ++index)
         {
-            const double x2 = index == intervalCount ? right : static_cast<double>(
-                std::min(static_cast<long double>(right),
-                    static_cast<long double>(left) + index * static_cast<long double>(step)));
+            const double x2 = index == intervalCount ? right
+                : std::min(right, std::fma(static_cast<double>(index), step, left));
 
             if (x2 == x1)
             {

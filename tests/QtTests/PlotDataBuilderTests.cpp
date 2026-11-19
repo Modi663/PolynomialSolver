@@ -12,6 +12,25 @@ class PlotDataBuilderTests final : public QObject
     Q_OBJECT
 
 private slots:
+    void reducesPaddingWhenRootsFitOnlyNearNumericLimit()
+    {
+        const auto camera = PlotDataBuilder::cameraForRoots({{1.5e308, 0}}, QSizeF(800, 400), 0.05);
+        QVERIFY(camera);
+        const auto viewport = PlotDataBuilder::equalScaleViewport(camera->center, camera->unitsPerPixel, QSizeF(800, 400));
+        QVERIFY(viewport);
+        QVERIFY(viewport->x.minimum <= 0 && viewport->x.maximum >= 1.5e308);
+    }
+    void doesNotProjectTinyComplexRootsOntoXAxis()
+    {
+        QVERIFY(PlotDataBuilder::realRootMarkers({{0, 1e-9}, {0, -1e-9}}).isEmpty());
+    }
+    void retainsDifferentCloseRealRoots()
+    {
+        const auto markers = PlotDataBuilder::realRootMarkers({{1e-10, 0}, {2e-10, 0}});
+        QCOMPARE(markers.size(), 2);
+        QCOMPARE(markers[0].x(), 1e-10);
+        QCOMPARE(markers[1].x(), 2e-10);
+    }
     void buildsViewportWithOneSharedUnitScale()
     {
         const auto viewport = PlotDataBuilder::equalScaleViewport(QPointF(7, -2), 0.05, QSizeF(600, 400));
@@ -56,7 +75,7 @@ private slots:
         QVERIFY(!PlotDataBuilder::equalScaleViewport(center, scale, area));
     }
 
-    void returnsDistinctNearlyRealRootMarkers()
+    void returnsDistinctRealRootMarkers()
     {
         const auto markers = PlotDataBuilder::realRootMarkers({
             {1.0, 0.0},
@@ -65,9 +84,8 @@ private slots:
             {3.0, 1.0}
         });
 
-        QCOMPARE(markers.size(), 2);
+        QCOMPARE(markers.size(), 1);
         QCOMPARE(markers[0], QPointF(1.0, 0.0));
-        QCOMPARE(markers[1], QPointF(2.0, 0.0));
     }
 
     void usesAdaptivePointBudget()
@@ -165,6 +183,7 @@ private slots:
 
 };
 
-QTEST_APPLESS_MAIN(PlotDataBuilderTests)
+#include "TestRegistry.h"
+REGISTER_TEST_SUITE(PlotDataBuilderTests)
 
 #include "PlotDataBuilderTests.moc"

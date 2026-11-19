@@ -27,16 +27,7 @@ namespace PolynomialSolver::Core
                 if (!request.bisection)
                     throw std::invalid_argument("Не заданы параметры метода бисекции.");
 
-                const auto& options = *request.bisection;
-                const PolynomialSolverService service;
-                if (options.findAll)
-                {
-                    return service.solveNumerically(request.coefficients,
-                        options.left, options.right, options.step, options.decimalPlaces);
-                }
-
-                return service.solveOneNumerically(request.coefficients,
-                    options.left, options.right, options.decimalPlaces);
+                return PolynomialSolverService{}.solveNumerically(request.coefficients, *request.bisection);
             }
         };
 
